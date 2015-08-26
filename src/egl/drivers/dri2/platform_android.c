@@ -763,6 +763,13 @@ static struct dri2_egl_display_vtbl droid_display_vtbl = {
    .get_sync_values = dri2_fallback_get_sync_values,
 };
 
+static const __DRIimageLoaderExtension droid_image_loader_extension = {
+   .base = { __DRI_IMAGE_LOADER, 1 },
+
+   .getBuffers          = droid_image_get_buffers,
+   .flushFrontBuffer    = droid_flush_front_buffer,
+};
+
 EGLBoolean
 dri2_initialize_android(_EGLDriver *drv, _EGLDisplay *dpy)
 {

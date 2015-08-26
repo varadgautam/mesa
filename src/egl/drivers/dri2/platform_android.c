@@ -629,7 +629,7 @@ droid_get_buffers_with_format(__DRIdrawable * driDrawable,
 
    return dri2_surf->buffers;
 }
-#endif
+
 static EGLBoolean
 droid_add_configs_for_visuals(_EGLDriver *drv, _EGLDisplay *dpy)
 {

@@ -574,6 +574,14 @@ __intel_create_image(__DRIscreen *dri_screen,
             image->modifier = I915_FORMAT_MOD_X_TILED;
          break;
       case I915_FORMAT_MOD_Y_TILED:
+         /* Kernel provides no way to query support for this. Assume GEN check
+          * is enough :/
+          */
+         if (screen->devinfo.gen < 9) {
+            _mesa_warning(NULL, "Invalid Y-tiling parameter\n");
+            continue;
+         }
+
          image->modifier = I915_FORMAT_MOD_Y_TILED;
          break;
       }
@@ -587,6 +595,11 @@ __intel_create_image(__DRIscreen *dri_screen,
 
    if (use & __DRI_IMAGE_USE_LINEAR)
       tiling = I915_TILING_NONE;
+
+   if (image->modifier == I915_FORMAT_MOD_Y_TILED) {
+      assert(tiling != I915_TILING_NONE);
+      tiling = I915_TILING_Y;
+   }
 
    cpp = _mesa_get_format_bytes(image->format);
    image->bo = drm_intel_bo_alloc_tiled(screen->bufmgr, "image",
@@ -919,7 +932,7 @@ intel_from_planar(__DRIimage *parent, int plane, void *loaderPrivate)
 }
 
 static const __DRIimageExtension intelImageExtension = {
-    .base = { __DRI_IMAGE, 13 },
+    .base = { __DRI_IMAGE, 14 },
 
     .createImageFromName                = intel_create_image_from_name,
     .createImageFromRenderbuffer        = intel_create_image_from_renderbuffer,
@@ -1794,7 +1807,13 @@ intelAllocateBuffer(__DRIscreen *dri_screen,
       return NULL;
 
    /* The front and back buffers are color buffers, which are X tiled. */
-   uint32_t tiling = I915_TILING_X;
+   uint32_t tiling;
+   if (screen->devinfo.gen >= 9) {
+      tiling = I915_TILING_Y;
+   } else {
+      tiling = I915_TILING_X;
+   }
+
    unsigned long pitch;
    int cpp = format / 8;
    intelBuffer->bo = drm_intel_bo_alloc_tiled(screen->bufmgr,

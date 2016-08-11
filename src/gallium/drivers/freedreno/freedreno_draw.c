@@ -274,6 +274,15 @@ fd_clear(struct pipe_context *pctx, unsigned buffers,
 		util_format_short_name(pipe_surface_format(pfb->cbufs[0])),
 		util_format_short_name(pipe_surface_format(pfb->zsbuf)));
 
+	/* if per-gen backend doesn't implement ctx->clear() the use u_blitter: */
+	if (!ctx->clear) {
+		fd_blitter_pipe_begin(ctx, false, false, FD_STAGE_CLEAR);
+		util_blitter_clear(ctx->blitter, pfb->width, pfb->height, 1,
+				buffers, color, depth, stencil);
+		fd_blitter_pipe_end(ctx);
+		return;
+	}
+
 	fd_hw_query_set_stage(batch, batch->draw, FD_STAGE_CLEAR);
 
 	ctx->clear(ctx, buffers, color, depth, stencil);

@@ -38,7 +38,7 @@ struct tgsi_yuv_transform {
    struct {
       struct tgsi_full_src_register src;
       struct tgsi_full_dst_register dst;
-   } tmp[2];
+   } tmp[3];
 #define A 0
 #define B 1
 
@@ -222,7 +222,7 @@ emit_decls(struct tgsi_transform_context *tctx)
 
    tempbase = info->file_max[TGSI_FILE_TEMPORARY] + 1;
 
-   for (i = 0; i < 2; i++) {
+   for (i = 0; i < 3; i++) {
       decl = tgsi_default_full_declaration();
       decl.Declaration.File = TGSI_FILE_TEMPORARY;
       decl.Range.First = decl.Range.Last = tempbase + i;
@@ -312,13 +312,23 @@ lower_nv12(struct tgsi_transform_context *tctx,
    reg_src(&inst.Src[0], coord, SWIZ(X, Y, Z, W));
    tctx->emit_instruction(tctx, &inst);
 
+   // uv samples for y plane appear at Xy / 2
+   inst = tgsi_default_full_instruction();
+   inst.Instruction.Opcode = TGSI_OPCODE_MUL;
+   inst.Instruction.Saturate = 0;
+   inst.Instruction.NumDstRegs = 1;
+   inst.Instruction.NumSrcRegs = 2;
+   reg_dst(&inst.Dst[0], &ctx->tmp[2].dst, TGSI_WRITEMASK_XYZW);
+   reg_src(&inst.Src[0], coord, SWIZ(X, Y, Z, W));
+   reg_src(&inst.Src[1], &ctx->imm[3], SWIZ(Z, W, W, W));
+   tctx->emit_instruction(tctx, &inst);
    /* sample UV:
     *    TEX tempB.xy, coord, texture[sampler_map[samp][0]], 2D;
     *    MOV tempA.yz, tempB._xy_
     */
    inst = tex_instruction(ctx->sampler_map[samp][0]);
    reg_dst(&inst.Dst[0], &ctx->tmp[B].dst, TGSI_WRITEMASK_XY);
-   reg_src(&inst.Src[0], coord, SWIZ(X, Y, Z, W));
+   reg_src(&inst.Src[0], &ctx->tmp[2].src, SWIZ(X, Y, Z, W));
    tctx->emit_instruction(tctx, &inst);
 
    inst = mov_instruction();

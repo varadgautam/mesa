@@ -907,8 +907,9 @@ fd_resource_from_handle(struct pipe_screen *pscreen,
 	slice->pitch = handle->stride / rsc->cpp;
 	slice->offset = handle->offset;
 
-	if ((slice->pitch < align(prsc->width0, 32)) || (slice->pitch % 32))
-		goto fail;
+	// client passes aligned handles
+//	if ((slice->pitch < align(prsc->width0, 32)) || (slice->pitch % 32))
+//		goto fail;
 
 	assert(rsc->cpp);
 

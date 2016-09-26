@@ -504,6 +504,7 @@ struct pipe_resource
     * next plane.
     */
    struct pipe_resource *next;
+   unsigned nv12:1;
 };
 
 

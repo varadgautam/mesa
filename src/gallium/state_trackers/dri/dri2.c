@@ -809,6 +809,7 @@ dri2_create_image_from_winsys(__DRIscreen *_screen,
    templ.last_level = 0;
    templ.depth0 = 1;
    templ.array_size = 1;
+   templ.nv12 = (num_handles == 2);
 
    for (i = num_handles - 1; i >= 0; i--) {
       struct pipe_resource *tex;
@@ -821,7 +822,7 @@ dri2_create_image_from_winsys(__DRIscreen *_screen,
          templ.format = pf;
          break;
       case 1:
-         templ.width0 = width / 2;
+         templ.width0 = width;
          templ.height0 = height / 2;
          templ.format = (num_handles == 2) ?
                PIPE_FORMAT_RG88_UNORM :   /* NV12, etc */

@@ -218,6 +218,8 @@ fd3_sampler_view_create(struct pipe_context *pctx, struct pipe_resource *prsc,
 	struct fd_resource *rsc = fd_resource(prsc);
 	unsigned lvl;
 	uint32_t sz2 = 0;
+	uint32_t fmt, odd_y32 = 0;
+	uint32_t swizz = 0;
 
 	if (!so)
 		return NULL;
@@ -228,12 +230,27 @@ fd3_sampler_view_create(struct pipe_context *pctx, struct pipe_resource *prsc,
 	so->base.reference.count = 1;
 	so->base.context = pctx;
 
+	odd_y32 = prsc->nv12 ? (prsc->height0 >> 5) & 1 : 0;
+
+	if(cso->format == PIPE_FORMAT_R8_UNORM && prsc->nv12) {
+		fmt = TFMT_NV12_Y_TILED;
+		swizz = A3XX_TEX_CONST_0_SWIZ_X(A3XX_TEX_X);
+	}
+	else if(cso->format == PIPE_FORMAT_R8G8_UNORM && prsc->nv12) {
+		fmt = TFMT_NV12_UV_TILED;
+		swizz = A3XX_TEX_CONST_0_SWIZ_X(A3XX_TEX_Y) |
+				A3XX_TEX_CONST_0_SWIZ_Y(A3XX_TEX_Z);
+	}
+	else {
+		swizz = fd3_tex_swiz(cso->format, cso->swizzle_r, cso->swizzle_g,
+							 cso->swizzle_b, cso->swizzle_a);
+		fmt = fd3_pipe2tex(cso->format);
+	}
+
 	so->texconst0 =
 			A3XX_TEX_CONST_0_TYPE(tex_type(prsc->target)) |
-			A3XX_TEX_CONST_0_FMT(fd3_pipe2tex(cso->format)) |
-			fd3_tex_swiz(cso->format, cso->swizzle_r, cso->swizzle_g,
-						cso->swizzle_b, cso->swizzle_a);
-
+			A3XX_TEX_CONST_0_FMT(fmt) |
+			swizz;
 	if (prsc->target == PIPE_BUFFER || util_format_is_pure_integer(cso->format))
 		so->texconst0 |= A3XX_TEX_CONST_0_NOCONVERT;
 	if (util_format_is_srgb(cso->format))
@@ -258,8 +275,22 @@ fd3_sampler_view_create(struct pipe_context *pctx, struct pipe_resource *prsc,
 			A3XX_TEX_CONST_1_HEIGHT(u_minify(prsc->height0, lvl));
 	}
 	/* when emitted, A3XX_TEX_CONST_2_INDX() must be OR'd in: */
-	so->texconst2 =
+	if(prsc->nv12) {
+		/* texconst2 is redefined for nv12mt */
+		if (cso->format == PIPE_FORMAT_R8_UNORM) {
+			so->texconst2 = ((((align(prsc->width0, 128) / 128) & 0x1F) |
+							odd_y32 << 6) << 9);
+		}
+		else if (cso->format == PIPE_FORMAT_R8G8_UNORM) {
+			so->texconst2 = (((align(prsc->width0, 128) / 128) | odd_y32 << 6 |
+							(align(prsc->height0 * 2, 32) & 0x3FFF) << 7) << 9);
+		}
+	}
+	else {
+		so->texconst2 =
 			A3XX_TEX_CONST_2_PITCH(fd3_pipe2nblocksx(cso->format, rsc->slices[lvl].pitch) * rsc->cpp);
+	}
+
 	switch (prsc->target) {
 	case PIPE_TEXTURE_1D_ARRAY:
 	case PIPE_TEXTURE_2D_ARRAY:

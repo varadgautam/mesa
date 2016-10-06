@@ -538,6 +538,43 @@ intel_destroy_image(__DRIimage *image)
    free(image);
 }
 
+static int
+create_image_with_modifier(struct intel_screen *screen,
+                             __DRIimage *image, uint64_t modifier,
+                             int width, int height, int cpp)
+{
+   uint32_t tiling;
+   unsigned long pitch;
+
+   switch (modifier) {
+   case I915_FORMAT_MOD_Y_TILED:
+      tiling = I915_TILING_Y;
+   }
+
+   /* For now, all modifiers require some tiling */
+   assert(tiling);
+
+   cpp = _mesa_get_format_bytes(image->format);
+   image->bo = drm_intel_bo_alloc_tiled(screen->bufmgr, "image+mod",
+                                        width, height, cpp, &tiling,
+                                        &pitch, 0);
+   if (image->bo == NULL)
+      return false;
+
+   if (tiling != I915_TILING_Y) {
+      drm_intel_bo_unreference(image->bo);
+      return false;
+   }
+
+   image->width = width;
+   image->height = height;
+   image->pitch = pitch;
+   image->tile_y = I915_TILING_Y;
+   image->modifier = modifier;
+
+   return true;
+}
+
 static __DRIimage *
 __intel_create_image(__DRIscreen *dri_screen,
 		   int width, int height, int format,
@@ -551,10 +588,20 @@ __intel_create_image(__DRIscreen *dri_screen,
    uint32_t tiling = I915_TILING_X;
    int cpp;
    unsigned long pitch;
+   uint64_t modifier = 0;
 
    image = intel_allocate_image(screen, format, loaderPrivate);
    if (image == NULL)
       return NULL;
+
+   if (use & __DRI_IMAGE_USE_CURSOR) {
+      if (width != 64 || height != 64)
+	 return NULL;
+      tiling = I915_TILING_NONE;
+   }
+
+   if (use & __DRI_IMAGE_USE_LINEAR)
+      tiling = I915_TILING_NONE;
 
    for (int i = 0; i < count; i++) {
       switch (modifiers[i]) {
@@ -567,26 +614,26 @@ __intel_create_image(__DRIscreen *dri_screen,
             continue;
          }
 
-         image->modifier = I915_FORMAT_MOD_Y_TILED;
+         if (tiling == I915_TILING_NONE) {
+            _mesa_warning(NULL, "Invalid use/modifier combination (%x %llx)\n",
+                          use, I915_FORMAT_MOD_Y_TILED);
+            continue;
+         }
+
+         modifier = I915_FORMAT_MOD_Y_TILED;
          break;
       }
    }
 
-   if (use & __DRI_IMAGE_USE_CURSOR) {
-      if (width != 64 || height != 64)
-	 return NULL;
-      tiling = I915_TILING_NONE;
-   }
-
-   if (use & __DRI_IMAGE_USE_LINEAR)
-      tiling = I915_TILING_NONE;
-
-   if (image->modifier == I915_FORMAT_MOD_Y_TILED) {
-      assert(tiling != I915_TILING_NONE);
-      tiling = I915_TILING_Y;
-   }
-
    cpp = _mesa_get_format_bytes(image->format);
+
+   if (modifier) {
+      if (create_image_with_modifier(screen, image, modifier, width,
+                                     height, cpp)) {
+         return image;
+      }
+   }
+
    image->bo = drm_intel_bo_alloc_tiled(screen->bufmgr, "image",
                                         width, height, cpp, &tiling,
                                         &pitch, 0);

@@ -558,6 +558,48 @@ select_best_modifier(struct gen_device_info *devinfo,
    return priority_to_modifier[prio];
 }
 
+static int
+create_image_with_modifier(struct intel_screen *screen,
+                             __DRIimage *image, uint64_t modifier,
+                             int width, int height, int cpp)
+{
+   uint32_t requested_tiling = I915_TILING_NONE, tiling = I915_TILING_NONE;
+   unsigned long pitch;
+
+   switch (modifier) {
+   case I915_FORMAT_MOD_Y_TILED:
+      requested_tiling = tiling = I915_TILING_Y;
+      break;
+   case I915_FORMAT_MOD_X_TILED:
+      requested_tiling = tiling = I915_TILING_X;
+      break;
+   case DRM_FORMAT_MOD_LINEAR:
+      requested_tiling = tiling = I915_TILING_NONE;
+      break;
+   case DRM_FORMAT_MOD_INVALID:
+   default:
+      break;
+   }
+
+   image->bo = drm_intel_bo_alloc_tiled(screen->bufmgr, "image+mod",
+                                        width, height, cpp, &tiling,
+                                        &pitch, 0);
+   if (image->bo == NULL)
+      return false;
+
+   if (tiling != requested_tiling) {
+      drm_intel_bo_unreference(image->bo);
+      return false;
+   }
+
+   image->width = width;
+   image->height = height;
+   image->pitch = pitch;
+   image->modifier = modifier;
+
+   return true;
+}
+
 static __DRIimage *
 intel_create_image_common(__DRIscreen *dri_screen,
                           int width, int height, int format,
@@ -582,22 +624,8 @@ intel_create_image_common(__DRIscreen *dri_screen,
    assert(!(use && count));
 
    uint64_t modifier = select_best_modifier(&screen->devinfo, modifiers, count);
-   switch (modifier) {
-   case I915_FORMAT_MOD_X_TILED:
-      assert(tiling == I915_TILING_X);
-      break;
-   case DRM_FORMAT_MOD_LINEAR:
-      tiling = I915_TILING_NONE;
-      break;
-   case I915_FORMAT_MOD_Y_TILED:
-      tiling = I915_TILING_Y;
-      break;
-   case DRM_FORMAT_MOD_INVALID:
-      if (modifiers)
-         return NULL;
-   default:
-         break;
-   }
+   if (modifier == DRM_FORMAT_MOD_INVALID && count)
+      return NULL;
 
    if (use & __DRI_IMAGE_USE_CURSOR) {
       if (width != 64 || height != 64)
@@ -613,6 +641,13 @@ intel_create_image_common(__DRIscreen *dri_screen,
       return NULL;
 
    cpp = _mesa_get_format_bytes(image->format);
+   if (count) {
+      if (create_image_with_modifier(screen, image, modifier, width,
+                                     height, cpp)) {
+         return image;
+      }
+   }
+
    image->bo = drm_intel_bo_alloc_tiled(screen->bufmgr, "image",
                                         width, height, cpp, &tiling,
                                         &pitch, 0);
@@ -623,7 +658,6 @@ intel_create_image_common(__DRIscreen *dri_screen,
    image->width = width;
    image->height = height;
    image->pitch = pitch;
-   image->modifier = modifier;
 
    return image;
 }

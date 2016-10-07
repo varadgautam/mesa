@@ -637,9 +637,15 @@ __intel_create_image(__DRIscreen *dri_screen,
    if (use & __DRI_IMAGE_USE_LINEAR)
       tiling = I915_TILING_NONE;
 
+   /* This determines the prioritized modifier to pick for later */
    for (int i = 0; i < count; i++) {
       switch (modifiers[i]) {
       case I915_FORMAT_MOD_Y_TILED:
+         /* Y-tiling is the lowest priority modifier */
+         if (modifier)
+            continue;
+         /* fallthrough */
+      case /* I915_FORMAT_MOD_CCS */ fourcc_mod_code(INTEL, 4):
          /* Kernel provides no way to query support for this. Assume GEN check
           * is enough :/
           */
@@ -649,12 +655,11 @@ __intel_create_image(__DRIscreen *dri_screen,
          }
 
          if (tiling == I915_TILING_NONE) {
-            _mesa_warning(NULL, "Invalid use/modifier combination (%x %llx)\n",
-                          use, I915_FORMAT_MOD_Y_TILED);
+            _mesa_warning(NULL, "Invalid use/modifier combination (%x %" PRIx64")\n",
+                          use, modifiers[i]);
             continue;
          }
-
-         modifier = I915_FORMAT_MOD_Y_TILED;
+         modifier = modifiers[i];
          break;
       }
    }
@@ -707,7 +712,8 @@ intel_create_image_with_modifiers(__DRIscreen *dri_screen,
    for (int i = 0; i < count; i++) {
       switch (modifiers[i]) {
       case I915_FORMAT_MOD_Y_TILED:
-         local_mods[local_count++] = I915_FORMAT_MOD_Y_TILED;
+      case /* I915_FORMAT_MOD_CCS */ fourcc_mod_code(INTEL, 4):
+         local_mods[local_count++] = modifiers[i];
          break;
       }
    }

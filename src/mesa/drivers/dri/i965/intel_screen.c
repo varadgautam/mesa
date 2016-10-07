@@ -552,6 +552,9 @@ create_image_with_modifier(struct intel_screen *screen,
    unsigned ccs_height = 0;
 
    switch (modifier) {
+   case /* I915_FORMAT_MOD_CCS */ fourcc_mod_code(INTEL, 4):
+      ccs_height = ALIGN(DIV_ROUND_UP(height, 16), 32);
+      /* fallthrough */
    case I915_FORMAT_MOD_Y_TILED:
       requested_tiling = tiling = I915_TILING_Y;
       tiled_height = ALIGN(height, 32);
@@ -660,6 +663,11 @@ __intel_create_image(__DRIscreen *dri_screen,
             image->modifier = I915_FORMAT_MOD_X_TILED;
          break;
       case I915_FORMAT_MOD_Y_TILED:
+         /* Y-tiling is the lowest priority modifier */
+         if (modifier)
+            continue;
+         /* fallthrough */
+      case /* I915_FORMAT_MOD_CCS */ fourcc_mod_code(INTEL, 4):
          /* Kernel provides no way to query support for this. Assume GEN check
           * is enough :/
           */
@@ -669,12 +677,11 @@ __intel_create_image(__DRIscreen *dri_screen,
          }
 
          if (tiling == I915_TILING_NONE) {
-            _mesa_warning(NULL, "Invalid use/modifier combination (%x %llx)\n",
-                          use, I915_FORMAT_MOD_Y_TILED);
+            _mesa_warning(NULL, "Invalid use/modifier combination (%x %" PRIx64")\n",
+                          use, modifiers[i]);
             continue;
          }
-
-         modifier = I915_FORMAT_MOD_Y_TILED;
+         modifier = modifiers[i];
          break;
       }
    }
@@ -729,7 +736,8 @@ intel_create_image_with_modifiers(__DRIscreen *dri_screen,
          local_mods[local_count++] = I915_FORMAT_MOD_X_TILED;
          break;
       case I915_FORMAT_MOD_Y_TILED:
-         local_mods[local_count++] = I915_FORMAT_MOD_Y_TILED;
+      case /* I915_FORMAT_MOD_CCS */ fourcc_mod_code(INTEL, 4):
+         local_mods[local_count++] = modifiers[i];
          break;
       }
    }

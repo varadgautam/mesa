@@ -58,6 +58,11 @@ intel_miptree_alloc_mcs(struct brw_context *brw,
                         struct intel_mipmap_tree *mt,
                         GLuint num_samples);
 
+static void
+intel_miptree_init_mcs(struct brw_context *brw,
+                       struct intel_mipmap_tree *mt,
+                       int init_value);
+
 /**
  * Determine which MSAA layout should be used by the MSAA surface being
  * created, based on the chip generation and the surface type.
@@ -150,6 +155,9 @@ intel_miptree_supports_non_msrt_fast_clear(struct brw_context *brw,
       return false;
 
    if (mt->disable_aux_buffers)
+      return false;
+
+   if (mt->is_scanout)
       return false;
 
    /* This function applies only to non-multisampled render targets. */
@@ -744,6 +752,7 @@ intel_miptree_create(struct brw_context *brw,
        * resolves.
        */
       const bool lossless_compression_disabled = INTEL_DEBUG & DEBUG_NO_RBC;
+      assert(!mt->is_scanout);
       const bool is_lossless_compressed =
          unlikely(!lossless_compression_disabled) &&
          brw->gen >= 9 && !mt->is_scanout &&
@@ -810,6 +819,36 @@ intel_miptree_create_for_bo(struct brw_context *brw,
    return mt;
 }
 
+static bool
+create_ccs_buf_for_image(struct brw_context *intel,
+                         __DRIimage *image,
+                         struct intel_mipmap_tree *mt)
+{
+
+   struct isl_surf temp_main_surf;
+   struct isl_surf temp_ccs_surf;
+   uint32_t offset = mt->offset + image->aux_offset;
+
+   intel_miptree_get_isl_surf(intel, mt, &temp_main_surf);
+   if (!isl_surf_get_ccs_surf(&intel->isl_dev, &temp_main_surf, &temp_ccs_surf))
+      return false;
+
+   mt->mcs_buf = calloc(1, sizeof(*mt->mcs_buf));
+   mt->mcs_buf->bo = image->bo;
+   drm_intel_bo_reference(image->bo);
+
+   mt->mcs_buf->offset = offset;
+   mt->mcs_buf->size = temp_ccs_surf.size;
+   mt->mcs_buf->pitch = temp_ccs_surf.row_pitch;
+   mt->mcs_buf->qpitch = isl_surf_get_array_pitch_sa_rows(&temp_ccs_surf);
+
+   intel_miptree_init_mcs(intel, mt, 0);
+   mt->no_ccs = false;
+   mt->msaa_layout = INTEL_MSAA_LAYOUT_CMS;
+
+   return true;
+}
+
 struct intel_mipmap_tree *
 intel_miptree_create_for_image(struct brw_context *intel,
                                __DRIimage *image,
@@ -820,17 +859,43 @@ intel_miptree_create_for_image(struct brw_context *intel,
                                uint32_t pitch,
                                uint32_t layout_flags)
 {
-   layout_flags = (layout_flags & MIPTREE_LAYOUT_FOR_SCANOUT) ?
-      MIPTREE_LAYOUT_FOR_SCANOUT : MIPTREE_LAYOUT_DISABLE_AUX;
-   return intel_miptree_create_for_bo(intel,
-                                      image->bo,
-                                      format,
-                                      offset,
-                                      width,
-                                      height,
-                                      1,
-                                      pitch,
-                                      layout_flags);
+   struct intel_mipmap_tree *mt;
+
+   /* Other flags will be ignored, so make sure the caller didn't pass any. */
+   assert((layout_flags & ~MIPTREE_LAYOUT_FOR_SCANOUT) == 0);
+
+   if (!image->aux_offset)
+      layout_flags |= MIPTREE_LAYOUT_DISABLE_AUX;
+   else
+      layout_flags |= MIPTREE_LAYOUT_FORCE_HALIGN16;
+
+   mt = intel_miptree_create_for_bo(intel,
+                                    image->bo,
+                                    format,
+                                    offset,
+                                    width,
+                                    height,
+                                    1,
+                                    pitch,
+                                    layout_flags);
+
+   if (!intel_tiling_supports_non_msrt_mcs(intel, mt->tiling)) {
+      assert(image->aux_offset == 0);
+      return mt;
+   }
+
+   if (layout_flags & MIPTREE_LAYOUT_DISABLE_AUX)
+      return mt;
+
+   layout_flags &= ~MIPTREE_LAYOUT_FOR_SCANOUT;
+
+   assert(image->aux_offset);
+   assert(mt->num_samples >= 0);
+   assert(mt->last_level < 2);
+
+   create_ccs_buf_for_image(intel, image, mt);
+
+   return mt;
 }
 
 /**
@@ -991,7 +1056,7 @@ intel_miptree_release(struct intel_mipmap_tree **mt)
             drm_intel_bo_unreference((*mt)->hiz_buf->aux_base.bo);
          free((*mt)->hiz_buf);
       }
-      if ((*mt)->mcs_buf) {
+      if ((*mt)->mcs_buf && !(*mt)->is_scanout) {
          drm_intel_bo_unreference((*mt)->mcs_buf->bo);
          free((*mt)->mcs_buf);
       }

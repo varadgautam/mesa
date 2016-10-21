@@ -38,6 +38,7 @@
 #include <unistd.h>
 #include <dlfcn.h>
 #include <xf86drm.h>
+#include <drm_fourcc.h>
 
 #include <GL/gl.h> /* dri_interface needs GL types */
 #include <GL/internal/dri_interface.h>
@@ -705,6 +706,32 @@ gbm_dri_bo_get_offset(struct gbm_bo *_bo, int plane)
    return (uint32_t)offset;
 }
 
+static uint64_t
+gbm_dri_bo_get_modifier(struct gbm_bo *_bo)
+{
+   struct gbm_dri_device *dri = gbm_dri_device(_bo->gbm);
+   struct gbm_dri_bo *bo = gbm_dri_bo(_bo);
+
+   if (!dri->image || dri->image->base.version < 14) {
+      errno = ENOSYS;
+      return 0;
+   }
+
+   /* Dumb buffers have no modifiers */
+   if (!bo->image)
+      return 0;
+
+   uint64_t ret = 0;
+   int mod;
+   dri->image->queryImage(bo->image, __DRI_IMAGE_ATTRIB_MODIFIER_UPPER, &mod);
+   ret = (uint64_t)mod << 32;
+
+   dri->image->queryImage(bo->image, __DRI_IMAGE_ATTRIB_MODIFIER_LOWER, &mod);
+   ret |= mod;
+
+   return ret;
+}
+
 static void
 gbm_dri_bo_destroy(struct gbm_bo *_bo)
 {
@@ -1039,15 +1066,6 @@ gbm_dri_bo_create(struct gbm_device *gbm,
    if (bo->image == NULL)
       goto failed;
 
-   bo->base.base.modifiers = calloc(count, sizeof(*modifiers));
-   if (count && !bo->base.base.modifiers) {
-      dri->image->destroyImage(bo->image);
-      goto failed;
-   }
-
-   bo->base.base.count = count;
-   memcpy(bo->base.base.modifiers, modifiers, count * sizeof(*modifiers));
-
    dri->image->queryImage(bo->image, __DRI_IMAGE_ATTRIB_HANDLE,
                           &bo->base.base.handle.s32);
    dri->image->queryImage(bo->image, __DRI_IMAGE_ATTRIB_STRIDE,
@@ -1195,6 +1213,7 @@ dri_device_create(int fd)
    dri->base.base.bo_get_handle = gbm_dri_bo_get_handle_for_plane;
    dri->base.base.bo_get_stride = gbm_dri_bo_get_stride;
    dri->base.base.bo_get_offset = gbm_dri_bo_get_offset;
+   dri->base.base.bo_get_modifier = gbm_dri_bo_get_modifier;
    dri->base.base.bo_destroy = gbm_dri_bo_destroy;
    dri->base.base.destroy = dri_destroy;
    dri->base.base.surface_create = gbm_dri_surface_create;

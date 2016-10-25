@@ -726,7 +726,7 @@ intel_miptree_create_for_image(struct brw_context *intel,
                                uint32_t pitch,
                                uint32_t layout_flags);
 
-void
+int
 intel_update_winsys_renderbuffer_miptree(struct brw_context *intel,
                                          struct intel_renderbuffer *irb,
                                          drm_intel_bo *bo,

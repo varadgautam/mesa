@@ -1661,9 +1661,12 @@ intel_process_dri2_buffer(struct brw_context *brw,
       return;
    }
 
-   intel_update_winsys_renderbuffer_miptree(brw, rb, bo,
-                                            drawable->w, drawable->h,
-                                            buffer->pitch);
+   if (!intel_update_winsys_renderbuffer_miptree(brw, rb, bo,
+                                                 drawable->w, drawable->h,
+                                                 buffer->pitch)) {
+      drm_intel_bo_unreference(bo);
+      return;
+   }
 
    if (_mesa_is_front_buffer_drawing(fb) &&
        (buffer->attachment == __DRI_BUFFER_FRONT_LEFT ||
@@ -1722,9 +1725,10 @@ intel_update_image_buffer(struct brw_context *intel,
    if (!buffer->aux_offset)
       rb->no_aux = true;
 
-   intel_update_winsys_renderbuffer_miptree(intel, rb, buffer->bo,
-                                            buffer->width, buffer->height,
-                                            buffer->pitch);
+   if (!intel_update_winsys_renderbuffer_miptree(intel, rb, buffer->bo,
+                                                 buffer->width, buffer->height,
+                                                 buffer->pitch))
+      return;
 
    if (_mesa_is_front_buffer_drawing(fb) &&
        buffer_type == __DRI_IMAGE_BUFFER_FRONT &&

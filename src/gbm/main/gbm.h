@@ -294,10 +294,10 @@ gbm_bo_map(struct gbm_bo *bo,
 void
 gbm_bo_unmap(struct gbm_bo *bo, void *map_data);
 
-uint32_t
+unsigned int
 gbm_bo_get_width(struct gbm_bo *bo);
 
-uint32_t
+unsigned int
 gbm_bo_get_height(struct gbm_bo *bo);
 
 uint32_t

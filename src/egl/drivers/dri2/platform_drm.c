@@ -229,9 +229,10 @@ get_back_bo(struct dri2_egl_surface *dri2_surf)
    if (dri2_surf->back == NULL)
       return -1;
    if (dri2_surf->back->bo == NULL)
-      dri2_surf->back->bo = gbm_bo_create(&dri2_dpy->gbm_dri->base.base,
-					  surf->base.width, surf->base.height,
-					  surf->base.format, surf->base.flags);
+      dri2_surf->back->bo = gbm_bo_create_with_modifiers(&dri2_dpy->gbm_dri->base.base,
+                                                         surf->base.width, surf->base.height,
+                                                         surf->base.format, surf->base.flags,
+                                                         surf->base.modifiers, surf->base.count);
    if (dri2_surf->back->bo == NULL)
       return -1;
 

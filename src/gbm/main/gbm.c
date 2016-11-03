@@ -351,9 +351,23 @@ gbm_bo_create(struct gbm_device *gbm,
       return NULL;
    }
 
-   return gbm->bo_create(gbm, width, height, format, usage);
+   return gbm->bo_create(gbm, width, height, format, usage, NULL, 0);
 }
 
+GBM_EXPORT struct gbm_bo *
+gbm_bo_create_with_modifiers(struct gbm_device *gbm,
+                             uint32_t width, uint32_t height,
+                             uint32_t format, uint32_t usage,
+                             const uint64_t *modifiers,
+                             const unsigned int count)
+{
+   if (width == 0 || height == 0) {
+      errno = EINVAL;
+      return NULL;
+   }
+
+   return gbm->bo_create(gbm, width, height, format, usage, modifiers, count);
+}
 /**
  * Create a gbm buffer object from an foreign object
  *
@@ -459,7 +473,17 @@ gbm_surface_create(struct gbm_device *gbm,
                    uint32_t width, uint32_t height,
 		   uint32_t format, uint32_t flags)
 {
-   return gbm->surface_create(gbm, width, height, format, flags);
+   return gbm->surface_create(gbm, width, height, format, flags, NULL, 0);
+}
+
+GBM_EXPORT struct gbm_surface *
+gbm_surface_create_with_modifiers(struct gbm_device *gbm,
+                                  uint32_t width, uint32_t height,
+                                  uint32_t format, uint32_t flags,
+                                  const uint64_t *modifiers, const unsigned int count)
+{
+   return gbm->surface_create(gbm, width, height, format, flags,
+                              modifiers, count);
 }
 
 /**

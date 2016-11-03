@@ -931,7 +931,8 @@ free_bo:
 static struct gbm_bo *
 gbm_dri_bo_create(struct gbm_device *gbm,
                   uint32_t width, uint32_t height,
-                  uint32_t format, uint32_t usage)
+                  uint32_t format, uint32_t usage,
+                  const uint64_t *modifiers, const unsigned int count)
 {
    struct gbm_dri_device *dri = gbm_dri_device(gbm);
    struct gbm_dri_bo *bo;
@@ -996,12 +997,21 @@ gbm_dri_bo_create(struct gbm_device *gbm,
    dri_use |= __DRI_IMAGE_USE_SHARE;
 
    bo->image =
-      dri->image->createImage(dri->screen,
-                              width, height,
-                              dri_format, dri_use,
-                              bo);
+      dri->image->createImageWithModifiers(dri->screen,
+                                           width, height,
+                                           dri_format, dri_use,
+                                           modifiers, count,
+                                           bo);
    if (bo->image == NULL)
       goto failed;
+
+   bo->base.base.modifiers = calloc(count, sizeof(*modifiers));
+   if (!bo->base.base.modifiers) {
+      dri->image->destroyImage(bo->image);
+      goto failed;
+   }
+   bo->base.base.count = count;
+   memcpy(bo->base.base.modifiers, modifiers, count * sizeof(*modifiers));
 
    dri->image->queryImage(bo->image, __DRI_IMAGE_ATTRIB_HANDLE,
                           &bo->base.base.handle.s32);
@@ -1073,7 +1083,8 @@ gbm_dri_bo_unmap(struct gbm_bo *_bo, void *map_data)
 static struct gbm_surface *
 gbm_dri_surface_create(struct gbm_device *gbm,
                        uint32_t width, uint32_t height,
-		       uint32_t format, uint32_t flags)
+		       uint32_t format, uint32_t flags,
+                       const uint64_t *modifiers, const unsigned count)
 {
    struct gbm_dri_surface *surf;
 
@@ -1087,6 +1098,15 @@ gbm_dri_surface_create(struct gbm_device *gbm,
    surf->base.format = format;
    surf->base.flags = flags;
 
+   surf->base.modifiers = calloc(count, sizeof(*modifiers));
+   if (count && !surf->base.modifiers) {
+      free(surf);
+      return NULL;
+   }
+
+   surf->base.count = count;
+   memcpy(surf->base.modifiers, modifiers, count * sizeof(*modifiers));
+
    return &surf->base;
 }
 
@@ -1095,6 +1115,7 @@ gbm_dri_surface_destroy(struct gbm_surface *_surf)
 {
    struct gbm_dri_surface *surf = gbm_dri_surface(_surf);
 
+   free(surf->base.modifiers);
    free(surf);
 }
 

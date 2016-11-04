@@ -1413,6 +1413,7 @@ static __DRIimageExtension dri2ImageExtension = {
     .getCapabilities              = dri2_get_capabilities,
     .mapImage                     = dri2_map_image,
     .unmapImage                   = dri2_unmap_image,
+    .createImageWithModifiers     = NULL,
 };
 
 

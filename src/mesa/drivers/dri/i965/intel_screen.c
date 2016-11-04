@@ -538,9 +538,11 @@ intel_destroy_image(__DRIimage *image)
 }
 
 static __DRIimage *
-intel_create_image(__DRIscreen *dri_screen,
+__intel_create_image(__DRIscreen *dri_screen,
 		   int width, int height, int format,
 		   unsigned int use,
+                   const uint64_t *modifiers,
+                   unsigned count,
 		   void *loaderPrivate)
 {
    __DRIimage *image;
@@ -576,6 +578,27 @@ intel_create_image(__DRIscreen *dri_screen,
    image->pitch = pitch;
 
    return image;
+}
+
+static __DRIimage *
+intel_create_image(__DRIscreen *dri_screen,
+		   int width, int height, int format,
+		   unsigned int use,
+		   void *loaderPrivate)
+{
+   return __intel_create_image(dri_screen, width, height, format, use, NULL, 0, loaderPrivate);
+}
+
+static __DRIimage *
+intel_create_image_with_modifiers(__DRIscreen *dri_screen,
+                                  int width, int height, int format,
+                                  unsigned int use,
+                                  const uint64_t *modifiers,
+                                  const unsigned count,
+                                  void *loaderPrivate)
+{
+   return __intel_create_image(dri_screen, width, height, format, use, NULL, 0,
+                               loaderPrivate);
 }
 
 static GLboolean
@@ -870,6 +893,7 @@ static const __DRIimageExtension intelImageExtension = {
     .getCapabilities                    = NULL,
     .mapImage                           = NULL,
     .unmapImage                         = NULL,
+    .createImageWithModifiers           = intel_create_image_with_modifiers,
 };
 
 static int

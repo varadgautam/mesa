@@ -80,6 +80,7 @@ struct __DRIimageRec {
    uint32_t strides[3];
    uint32_t offsets[3];
    struct intel_image_format *planar_format;
+   uint64_t modifier; /** fb modifier (fourcc) */
 
    /* particular miptree level */
    GLuint width;

@@ -23,6 +23,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <drm_fourcc.h>
 #include <errno.h>
 #include <time.h>
 #include <unistd.h>
@@ -550,7 +551,7 @@ __intel_create_image(__DRIscreen *dri_screen,
 {
    __DRIimage *image;
    struct intel_screen *screen = dri_screen->driverPrivate;
-   uint32_t tiling;
+   uint32_t tiling = I915_TILING_X;
    int cpp;
    unsigned long pitch;
 
@@ -561,7 +562,18 @@ __intel_create_image(__DRIscreen *dri_screen,
     */
    assert(~(use & count));
 
-   tiling = I915_TILING_X;
+   image = intel_allocate_image(screen, format, loaderPrivate);
+   if (image == NULL)
+      return NULL;
+
+   for (int i = 0; i < count; i++) {
+      switch (modifiers[i]) {
+      case I915_FORMAT_MOD_Y_TILED:
+         image->modifier = I915_FORMAT_MOD_Y_TILED;
+         break;
+      }
+   }
+
    if (use & __DRI_IMAGE_USE_CURSOR) {
       if (width != 64 || height != 64)
 	 return NULL;
@@ -570,10 +582,6 @@ __intel_create_image(__DRIscreen *dri_screen,
 
    if (use & __DRI_IMAGE_USE_LINEAR)
       tiling = I915_TILING_NONE;
-
-   image = intel_allocate_image(screen, format, loaderPrivate);
-   if (image == NULL)
-      return NULL;
 
    cpp = _mesa_get_format_bytes(image->format);
    image->bo = drm_intel_bo_alloc_tiled(screen->bufmgr, "image",
@@ -607,8 +615,20 @@ intel_create_image_with_modifiers(__DRIscreen *dri_screen,
                                   const unsigned count,
                                   void *loaderPrivate)
 {
-   return __intel_create_image(dri_screen, width, height, format, 0, NULL, 0,
-                               loaderPrivate);
+   uint64_t local_mods[count];
+   int local_count = 0;
+
+   /* This compacts the actual modifiers to the ones we know how to handle */
+   for (int i = 0; i < count; i++) {
+      switch (modifiers[i]) {
+      case I915_FORMAT_MOD_Y_TILED:
+         local_mods[local_count++] = I915_FORMAT_MOD_Y_TILED;
+         break;
+      }
+   }
+
+   return __intel_create_image(dri_screen, width, height, format, 0,
+                               local_mods, local_count, loaderPrivate);
 }
 
 static GLboolean

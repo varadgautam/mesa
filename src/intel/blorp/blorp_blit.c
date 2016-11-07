@@ -31,6 +31,7 @@
 #define FILE_DEBUG_FLAG DEBUG_BLORP
 
 static const bool split_blorp_blit_debug = false;
+static const bool isl_surface_debug_dump = false;
 
 /**
  * Enum to specify the order of arguments in a sampler message
@@ -2020,6 +2021,11 @@ blorp_blit(struct blorp_batch *batch,
    struct blorp_params params;
    blorp_params_init(&params);
 
+   if (isl_surface_debug_dump) {
+      blorp_surf_dump(batch->blorp, src_surf, "blorp-blit-src");
+      blorp_surf_dump(batch->blorp, dst_surf, "blorp-blit-dst-before");
+   }
+
    brw_blorp_surface_info_init(batch->blorp, &params.src, src_surf, src_level,
                                src_layer, src_format, false);
    brw_blorp_surface_info_init(batch->blorp, &params.dst, dst_surf, dst_level,
@@ -2091,6 +2097,9 @@ blorp_blit(struct blorp_batch *batch,
    };
 
    do_blorp_blit(batch, &params, &wm_prog_key, &coords);
+
+   if (isl_surface_debug_dump)
+      blorp_surf_dump(batch->blorp, dst_surf, "blorp-blit-dst-after");
 }
 
 static enum isl_format
@@ -2359,6 +2368,11 @@ blorp_copy(struct blorp_batch *batch,
    brw_blorp_surface_info_init(batch->blorp, &params.dst, dst_surf, dst_level,
                                dst_layer, ISL_FORMAT_UNSUPPORTED, true);
 
+   if (isl_surface_debug_dump) {
+      blorp_surf_dump(batch->blorp, src_surf, "blorp-copy-src");
+      blorp_surf_dump(batch->blorp, dst_surf, "blorp-copy-dst-before");
+   }
+
    struct brw_blorp_blit_prog_key wm_prog_key = {
       .shader_type = BLORP_SHADER_TYPE_BLIT
    };
@@ -2455,4 +2469,7 @@ blorp_copy(struct blorp_batch *batch,
    };
 
    do_blorp_blit(batch, &params, &wm_prog_key, &coords);
+
+   if (isl_surface_debug_dump)
+      blorp_surf_dump(batch->blorp, dst_surf, "blorp-copy-dst-after");
 }

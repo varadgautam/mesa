@@ -37,6 +37,7 @@ extern "C" {
 
 struct blorp_batch;
 struct blorp_params;
+struct blorp_address;
 
 struct blorp_context {
    void *driver_ctx;
@@ -51,6 +52,13 @@ struct blorp_context {
       uint32_t vb;
    } mocs;
 
+   void (*map)(const struct blorp_context *blorp,
+               const struct blorp_address *blorp_addr,
+               void **addr,
+               unsigned int *map_size,
+               bool *mapped_previously);
+   void (*unmap)(const struct blorp_context *blorp,
+                 const struct blorp_address *blorp_addr);
    bool (*lookup_shader)(struct blorp_context *blorp,
                          const void *key, uint32_t key_size,
                          uint32_t *kernel_out, void *prog_data_out);

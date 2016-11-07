@@ -29,14 +29,52 @@
 #include "main/glformats.h"
 
 #include "brw_blorp.h"
+#include "brw_bufmgr.h"
 #include "brw_context.h"
 #include "brw_defines.h"
 #include "brw_meta_util.h"
 #include "brw_state.h"
 #include "intel_fbo.h"
+#include "intel_batchbuffer.h"
 #include "common/gen_debug.h"
 
 #define FILE_DEBUG_FLAG DEBUG_BLORP
+
+static void
+brw_blorp_map(const struct blorp_context *blorp,
+              const struct blorp_address *blorp_addr,
+              void **addr,
+              unsigned int *size,
+              bool *mapped_previously)
+{
+   struct brw_context *brw = blorp->driver_ctx;
+   struct brw_bo *bo = blorp_addr->buffer;
+
+   *mapped_previously = bo->virtual != NULL;
+
+   if (!*mapped_previously) {
+      if (brw_batch_references(&brw->batch, bo))
+         intel_batchbuffer_flush(brw);
+
+      int ret = brw_bo_map(brw, bo, /*write_enable*/ false);
+      if (ret == -1) {
+         assert(bo->virtual == NULL);
+         *addr = NULL;
+         return;
+      }
+   }
+
+   *addr = bo->virtual;
+   *size = bo->size;
+}
+
+static void
+brw_blorp_unmap(const struct blorp_context *blorp,
+                const struct blorp_address *blorp_addr)
+{
+   struct brw_bo *bo = blorp_addr->buffer;
+   brw_bo_unmap(bo);
+}
 
 static bool
 brw_blorp_lookup_shader(struct blorp_context *blorp,
@@ -103,6 +141,8 @@ brw_blorp_init(struct brw_context *brw)
       unreachable("Invalid gen");
    }
 
+   brw->blorp.map = brw_blorp_map;
+   brw->blorp.unmap = brw_blorp_unmap;
    brw->blorp.lookup_shader = brw_blorp_lookup_shader;
    brw->blorp.upload_shader = brw_blorp_upload_shader;
 }

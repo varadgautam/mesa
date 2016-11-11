@@ -33,12 +33,12 @@ extern "C" {
 ** used to make the header, and the header can be found at
 **   http://www.opengl.org/registry/
 **
-** Khronos $Revision$ on $Date$
+** Khronos $Revision: 33288 $ on $Date: 2016-11-09 17:46:01 -0800 (Wed, 09 Nov 2016) $
 */
 
 #include <EGL/eglplatform.h>
 
-#define EGL_EGLEXT_VERSION 20160809
+#define EGL_EGLEXT_VERSION 20161109
 
 /* Generated C header for:
  * API: egl
@@ -76,6 +76,13 @@ EGLAPI EGLSyncKHR EGLAPIENTRY eglCreateSync64KHR (EGLDisplay dpy, EGLenum type, 
 #define EGL_VG_COLORSPACE_LINEAR_BIT_KHR  0x0020
 #define EGL_VG_ALPHA_FORMAT_PRE_BIT_KHR   0x0040
 #endif /* EGL_KHR_config_attribs */
+
+#ifndef EGL_KHR_context_flush_control
+#define EGL_KHR_context_flush_control 1
+#define EGL_CONTEXT_RELEASE_BEHAVIOR_NONE_KHR 0
+#define EGL_CONTEXT_RELEASE_BEHAVIOR_KHR  0x2097
+#define EGL_CONTEXT_RELEASE_BEHAVIOR_FLUSH_KHR 0x2098
+#endif /* EGL_KHR_context_flush_control */
 
 #ifndef EGL_KHR_create_context
 #define EGL_KHR_create_context 1
@@ -343,6 +350,24 @@ EGLAPI EGLBoolean EGLAPIENTRY eglQueryStreamu64KHR (EGLDisplay dpy, EGLStreamKHR
 #endif /* KHRONOS_SUPPORT_INT64 */
 #endif /* EGL_KHR_stream */
 
+#ifndef EGL_KHR_stream_attrib
+#define EGL_KHR_stream_attrib 1
+#ifdef KHRONOS_SUPPORT_INT64
+typedef EGLStreamKHR (EGLAPIENTRYP PFNEGLCREATESTREAMATTRIBKHRPROC) (EGLDisplay dpy, const EGLAttrib *attrib_list);
+typedef EGLBoolean (EGLAPIENTRYP PFNEGLSETSTREAMATTRIBKHRPROC) (EGLDisplay dpy, EGLStreamKHR stream, EGLenum attribute, EGLAttrib value);
+typedef EGLBoolean (EGLAPIENTRYP PFNEGLQUERYSTREAMATTRIBKHRPROC) (EGLDisplay dpy, EGLStreamKHR stream, EGLenum attribute, EGLAttrib *value);
+typedef EGLBoolean (EGLAPIENTRYP PFNEGLSTREAMCONSUMERACQUIREATTRIBKHRPROC) (EGLDisplay dpy, EGLStreamKHR stream, const EGLAttrib *attrib_list);
+typedef EGLBoolean (EGLAPIENTRYP PFNEGLSTREAMCONSUMERRELEASEATTRIBKHRPROC) (EGLDisplay dpy, EGLStreamKHR stream, const EGLAttrib *attrib_list);
+#ifdef EGL_EGLEXT_PROTOTYPES
+EGLAPI EGLStreamKHR EGLAPIENTRY eglCreateStreamAttribKHR (EGLDisplay dpy, const EGLAttrib *attrib_list);
+EGLAPI EGLBoolean EGLAPIENTRY eglSetStreamAttribKHR (EGLDisplay dpy, EGLStreamKHR stream, EGLenum attribute, EGLAttrib value);
+EGLAPI EGLBoolean EGLAPIENTRY eglQueryStreamAttribKHR (EGLDisplay dpy, EGLStreamKHR stream, EGLenum attribute, EGLAttrib *value);
+EGLAPI EGLBoolean EGLAPIENTRY eglStreamConsumerAcquireAttribKHR (EGLDisplay dpy, EGLStreamKHR stream, const EGLAttrib *attrib_list);
+EGLAPI EGLBoolean EGLAPIENTRY eglStreamConsumerReleaseAttribKHR (EGLDisplay dpy, EGLStreamKHR stream, const EGLAttrib *attrib_list);
+#endif
+#endif /* KHRONOS_SUPPORT_INT64 */
+#endif /* EGL_KHR_stream_attrib */
+
 #ifndef EGL_KHR_stream_consumer_gltexture
 #define EGL_KHR_stream_consumer_gltexture 1
 #ifdef EGL_KHR_stream
@@ -520,6 +545,11 @@ EGLAPI EGLBoolean EGLAPIENTRY eglQuerySurfacePointerANGLE (EGLDisplay dpy, EGLSu
 #define EGL_FIXED_SIZE_ANGLE              0x3201
 #endif /* EGL_ANGLE_window_fixed_size */
 
+#ifndef EGL_ARM_implicit_external_sync
+#define EGL_ARM_implicit_external_sync 1
+#define EGL_SYNC_PRIOR_COMMANDS_IMPLICIT_EXTERNAL_ARM 0x328A
+#endif /* EGL_ARM_implicit_external_sync */
+
 #ifndef EGL_ARM_pixmap_multisample_discard
 #define EGL_ARM_pixmap_multisample_discard 1
 #define EGL_DISCARD_SAMPLES_ARM           0x3286
@@ -603,6 +633,27 @@ EGLAPI EGLBoolean EGLAPIENTRY eglQueryDisplayAttribEXT (EGLDisplay dpy, EGLint a
 #define EGL_YUV_CHROMA_SITING_0_EXT       0x3284
 #define EGL_YUV_CHROMA_SITING_0_5_EXT     0x3285
 #endif /* EGL_EXT_image_dma_buf_import */
+
+#ifndef EGL_EXT_image_dma_buf_import_modifiers
+#define EGL_EXT_image_dma_buf_import_modifiers 1
+#define EGL_DMA_BUF_PLANE3_FD_EXT         0x3440
+#define EGL_DMA_BUF_PLANE3_OFFSET_EXT     0x3441
+#define EGL_DMA_BUF_PLANE3_PITCH_EXT      0x3442
+#define EGL_DMA_BUF_PLANE0_MODIFIER_LO_EXT 0x3443
+#define EGL_DMA_BUF_PLANE0_MODIFIER_HI_EXT 0x3444
+#define EGL_DMA_BUF_PLANE1_MODIFIER_LO_EXT 0x3445
+#define EGL_DMA_BUF_PLANE1_MODIFIER_HI_EXT 0x3446
+#define EGL_DMA_BUF_PLANE2_MODIFIER_LO_EXT 0x3447
+#define EGL_DMA_BUF_PLANE2_MODIFIER_HI_EXT 0x3448
+#define EGL_DMA_BUF_PLANE3_MODIFIER_LO_EXT 0x3449
+#define EGL_DMA_BUF_PLANE3_MODIFIER_HI_EXT 0x344A
+typedef EGLBoolean (EGLAPIENTRYP PFNEGLQUERYDMABUFFORMATSEXTPROC) (EGLDisplay dpy, EGLint max_formats, EGLint *formats, EGLint *num_formats);
+typedef EGLBoolean (EGLAPIENTRYP PFNEGLQUERYDMABUFMODIFIERSEXTPROC) (EGLDisplay dpy, EGLint format, EGLint max_modifiers, EGLuint64KHR *modifiers, EGLBoolean *external_only, EGLint *num_modifiers);
+#ifdef EGL_EGLEXT_PROTOTYPES
+EGLAPI EGLBoolean EGLAPIENTRY eglQueryDmaBufFormatsEXT (EGLDisplay dpy, EGLint max_formats, EGLint *formats, EGLint *num_formats);
+EGLAPI EGLBoolean EGLAPIENTRY eglQueryDmaBufModifiersEXT (EGLDisplay dpy, EGLint format, EGLint max_modifiers, EGLuint64KHR *modifiers, EGLBoolean *external_only, EGLint *num_modifiers);
+#endif
+#endif /* EGL_EXT_image_dma_buf_import_modifiers */
 
 #ifndef EGL_EXT_multiview_window
 #define EGL_EXT_multiview_window 1
@@ -801,6 +852,11 @@ EGLAPI EGLBoolean EGLAPIENTRY eglExportDMABUFImageMESA (EGLDisplay dpy, EGLImage
 #define EGL_MESA_platform_gbm 1
 #define EGL_PLATFORM_GBM_MESA             0x31D7
 #endif /* EGL_MESA_platform_gbm */
+
+#ifndef EGL_MESA_platform_surfaceless
+#define EGL_MESA_platform_surfaceless 1
+#define EGL_PLATFORM_SURFACELESS_MESA     0x31DD
+#endif /* EGL_MESA_platform_surfaceless */
 
 #ifndef EGL_NOK_swap_region
 #define EGL_NOK_swap_region 1

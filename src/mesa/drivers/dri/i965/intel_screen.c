@@ -747,7 +747,7 @@ intel_query_image(__DRIimage *image, int attrib, int *value)
    case __DRI_IMAGE_ATTRIB_FOURCC:
       return intel_lookup_fourcc(image->dri_format, value);
    case __DRI_IMAGE_ATTRIB_NUM_PLANES:
-      *value = 1;
+      *value = image->aux_offset ? 2: 1;
       return true;
    case __DRI_IMAGE_ATTRIB_OFFSET:
       *value = image->offset;
@@ -956,9 +956,17 @@ intel_from_planar(__DRIimage *parent, int plane, void *loaderPrivate)
     int width, height, offset, stride, dri_format, index;
     struct intel_image_format *f;
     __DRIimage *image;
+    bool is_aux = parent->aux_offset && plane == 1;
 
-    if (parent == NULL || parent->planar_format == NULL)
-        return NULL;
+    if (parent == NULL || parent->planar_format == NULL) {
+       if (is_aux) {
+          offset = parent->aux_offset;
+          stride = ALIGN(parent->pitch / 32, 128);
+          dri_format = parent->dri_format;
+          goto done;
+       }
+       return NULL;
+    }
 
     f = parent->planar_format;
 
@@ -972,11 +980,13 @@ intel_from_planar(__DRIimage *parent, int plane, void *loaderPrivate)
     offset = parent->offsets[index];
     stride = parent->strides[index];
 
+done:
     image = intel_allocate_image(parent->screen, dri_format, loaderPrivate);
     if (image == NULL)
        return NULL;
 
-    if (offset + height * stride > parent->bo->size) {
+    if (!is_aux &&
+        offset + height * stride > parent->bo->size) {
        _mesa_warning(NULL, "intel_create_sub_image: subimage out of bounds");
        free(image);
        return NULL;

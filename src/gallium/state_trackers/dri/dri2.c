@@ -884,7 +884,7 @@ static __DRIimage *
 dri2_create_image_from_fd(__DRIscreen *_screen,
                           int width, int height, int fourcc,
                           int *fds, int num_fds, int *strides,
-                          int *offsets, unsigned *error,
+                          int *offsets, uint64_t *modifiers, unsigned *error,
                           int *dri_components, void *loaderPrivate)
 {
    struct winsys_handle whandles[3];
@@ -929,6 +929,8 @@ dri2_create_image_from_fd(__DRIscreen *_screen,
       whandles[i].handle = (unsigned)fds[i];
       whandles[i].stride = (unsigned)strides[i];
       whandles[i].offset = (unsigned)offsets[i];
+      if (modifiers)
+         whandles[i].modifier = modifiers[i];
    }
 
    if (fourcc == __DRI_IMAGE_FOURCC_YVU420) {
@@ -1252,7 +1254,7 @@ dri2_from_fds(__DRIscreen *screen, int width, int height, int fourcc,
    int dri_components;
 
    img = dri2_create_image_from_fd(screen, width, height, fourcc,
-                                   fds, num_fds, strides, offsets, NULL,
+                                   fds, num_fds, strides, offsets, NULL, NULL,
                                    &dri_components, loaderPrivate);
    if (img == NULL)
       return NULL;
@@ -1277,8 +1279,40 @@ dri2_from_dma_bufs(__DRIscreen *screen,
    int dri_components;
 
    img = dri2_create_image_from_fd(screen, width, height, fourcc,
-                                   fds, num_fds, strides, offsets, error,
+                                   fds, num_fds, strides, offsets, NULL, error,
                                    &dri_components, loaderPrivate);
+   if (img == NULL)
+      return NULL;
+
+   img->yuv_color_space = yuv_color_space;
+   img->sample_range = sample_range;
+   img->horizontal_siting = horizontal_siting;
+   img->vertical_siting = vertical_siting;
+   img->dri_components = dri_components;
+
+   *error = __DRI_IMAGE_ERROR_SUCCESS;
+   return img;
+}
+
+static __DRIimage *
+dri2_from_dma_bufs2(__DRIscreen *screen,
+                    int width, int height, int fourcc,
+                    int *fds, int num_fds,
+                    int *strides, int *offsets,
+                    uint64_t *modifiers,
+                    enum __DRIYUVColorSpace yuv_color_space,
+                    enum __DRISampleRange sample_range,
+                    enum __DRIChromaSiting horizontal_siting,
+                    enum __DRIChromaSiting vertical_siting,
+                    unsigned *error,
+                    void *loaderPrivate)
+{
+   __DRIimage *img;
+   int dri_components;
+
+   img = dri2_create_image_from_fd(screen, width, height, fourcc,
+                                   fds, num_fds, strides, offsets, modifiers,
+                                   error, &dri_components, loaderPrivate);
    if (img == NULL)
       return NULL;
 
@@ -1395,7 +1429,7 @@ dri2_get_capabilities(__DRIscreen *_screen)
 
 /* The extension is modified during runtime if DRI_PRIME is detected */
 static __DRIimageExtension dri2ImageExtension = {
-    .base = { __DRI_IMAGE, 14 },
+    .base = { __DRI_IMAGE, 15 },
 
     .createImageFromName          = dri2_create_image_from_name,
     .createImageFromRenderbuffer  = dri2_create_image_from_renderbuffer,
@@ -1414,6 +1448,7 @@ static __DRIimageExtension dri2ImageExtension = {
     .mapImage                     = dri2_map_image,
     .unmapImage                   = dri2_unmap_image,
     .createImageWithModifiers     = NULL,
+    .createImageFromDmaBufs2      = NULL,
 };
 
 
@@ -1959,6 +1994,7 @@ dri2_init_screen(__DRIscreen * sPriv)
           (cap & DRM_PRIME_CAP_IMPORT)) {
          dri2ImageExtension.createImageFromFds = dri2_from_fds;
          dri2ImageExtension.createImageFromDmaBufs = dri2_from_dma_bufs;
+         dri2ImageExtension.createImageFromDmaBufs2 = dri2_from_dma_bufs2;
       }
    }
 
@@ -2031,6 +2067,7 @@ dri_kms_init_screen(__DRIscreen * sPriv)
           (cap & DRM_PRIME_CAP_IMPORT)) {
       dri2ImageExtension.createImageFromFds = dri2_from_fds;
       dri2ImageExtension.createImageFromDmaBufs = dri2_from_dma_bufs;
+      dri2ImageExtension.createImageFromDmaBufs2 = dri2_from_dma_bufs2;
    }
 
    sPriv->extensions = dri_screen_extensions;

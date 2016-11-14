@@ -1136,7 +1136,7 @@ struct __DRIdri2ExtensionRec {
  * extensions.
  */
 #define __DRI_IMAGE "DRI_IMAGE"
-#define __DRI_IMAGE_VERSION 14
+#define __DRI_IMAGE_VERSION 15
 
 /**
  * These formats correspond to the similarly named MESA_FORMAT_*
@@ -1466,7 +1466,6 @@ struct __DRIimageExtensionRec {
     */
    void (*unmapImage)(__DRIcontext *context, __DRIimage *image, void *data);
 
-
    /**
     * Creates an image with implementation's favorite modifiers.
     *
@@ -1489,6 +1488,25 @@ struct __DRIimageExtensionRec {
                                            const uint64_t *modifiers,
                                            const unsigned int modifier_count,
                                            void *loaderPrivate);
+
+   /*
+    * Like createImageFromDmaBufs, but takes also format modifiers.
+    *
+    * For EGL_EXT_image_dma_buf_import_modifiers.
+    *
+    * \since 15
+    */
+   __DRIimage *(*createImageFromDmaBufs2)(__DRIscreen *screen,
+                                          int width, int height, int fourcc,
+                                          int *fds, int num_fds,
+                                          int *strides, int *offsets,
+                                          uint64_t *modifiers,
+                                          enum __DRIYUVColorSpace color_space,
+                                          enum __DRISampleRange sample_range,
+                                          enum __DRIChromaSiting horiz_siting,
+                                          enum __DRIChromaSiting vert_siting,
+                                          unsigned *error,
+                                          void *loaderPrivate);
 };
 
 

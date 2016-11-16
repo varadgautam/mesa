@@ -960,7 +960,8 @@ brw_blorp_resolve_color(struct brw_context *brw, struct intel_mipmap_tree *mt,
 
    enum blorp_fast_clear_op resolve_op;
    if (brw->gen >= 9) {
-      if (surf.aux_usage == ISL_AUX_USAGE_CCS_E)
+      if (surf.aux_usage == ISL_AUX_USAGE_CCS_E &&
+          hint != INTEL_RESOLVE_HINT_CLEAR_COLOR)
          resolve_op = BLORP_FAST_CLEAR_OP_RESOLVE_FULL;
       else
          resolve_op = BLORP_FAST_CLEAR_OP_RESOLVE_PARTIAL;

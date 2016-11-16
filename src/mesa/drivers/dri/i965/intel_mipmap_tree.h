@@ -938,7 +938,9 @@ intel_miptree_used_for_rendering(const struct brw_context *brw,
  */
 enum intel_resolve_hint {
    INTEL_RESOLVE_HINT_NO_HINT = 0,
-   INTEL_RESOLVE_HINT_IGNORE_CCS_E
+   INTEL_RESOLVE_HINT_IGNORE_CCS_E,
+   INTEL_RESOLVE_HINT_CLEAR_COLOR,
+   INTEL_RESOLVE_HINT_FULL,
 };
 
 bool

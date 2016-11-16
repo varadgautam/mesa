@@ -2399,8 +2399,8 @@ intel_miptree_make_shareable(struct brw_context *brw,
    assert(mt->msaa_layout == INTEL_MSAA_LAYOUT_NONE || mt->num_samples <= 1);
 
    if (mt->mcs_buf) {
-      intel_miptree_all_slices_resolve_color(brw, mt, 0);
-      mt->no_ccs = true;
+      intel_miptree_all_slices_resolve_color(brw, mt,
+                                             INTEL_RESOLVE_HINT_CLEAR_COLOR);
    }
 }
 

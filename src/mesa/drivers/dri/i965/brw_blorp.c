@@ -943,7 +943,8 @@ brw_blorp_clear_color(struct brw_context *brw, struct gl_framebuffer *fb,
 
 void
 brw_blorp_resolve_color(struct brw_context *brw, struct intel_mipmap_tree *mt,
-                        unsigned level, unsigned layer)
+                        unsigned level, unsigned layer,
+                        enum intel_resolve_hint hint)
 {
    DBG("%s to mt %p level %u layer %u\n", __FUNCTION__, mt, level, layer);
 

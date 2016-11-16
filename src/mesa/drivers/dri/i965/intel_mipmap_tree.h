@@ -946,21 +946,24 @@ intel_miptree_used_for_rendering(const struct brw_context *brw,
  * Flag values telling color resolve pass which special types of buffers
  * can be ignored.
  *
- * INTEL_MIPTREE_IGNORE_CCS_E:   Lossless compressed (single-sample
- *                               compression scheme since gen9)
+ * INTEL_RESOLVE_HINT_IGNORE_CCS_E:   Lossless compressed (single-sample
+ *                                    compression scheme since gen9)
  */
-#define INTEL_MIPTREE_IGNORE_CCS_E (1 << 0)
+enum intel_resolve_hint {
+   INTEL_RESOLVE_HINT_NO_HINT = 0,
+   INTEL_RESOLVE_HINT_IGNORE_CCS_E
+};
 
 bool
 intel_miptree_resolve_color(struct brw_context *brw,
                             struct intel_mipmap_tree *mt, unsigned level,
                             unsigned start_layer, unsigned num_layers,
-                            int flags);
+                            enum intel_resolve_hint);
 
 void
 intel_miptree_all_slices_resolve_color(struct brw_context *brw,
                                        struct intel_mipmap_tree *mt,
-                                       int flags);
+                                       enum intel_resolve_hint hint);
 
 void
 intel_miptree_make_shareable(struct brw_context *brw,

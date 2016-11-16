@@ -259,9 +259,10 @@ intel_update_state(struct gl_context * ctx, GLuint new_state)
       /* Sampling engine understands lossless compression and resolving
        * those surfaces should be skipped for performance reasons.
        */
-      const int flags = intel_texture_view_requires_resolve(brw, tex_obj) ?
-                           0 : INTEL_MIPTREE_IGNORE_CCS_E;
-      intel_miptree_all_slices_resolve_color(brw, tex_obj->mt, flags);
+      const enum intel_resolve_hint hint =
+         intel_texture_view_requires_resolve(brw, tex_obj) ? 0 :
+         INTEL_RESOLVE_HINT_IGNORE_CCS_E;
+      intel_miptree_all_slices_resolve_color(brw, tex_obj->mt, hint);
       brw_render_cache_set_check_flush(brw, tex_obj->mt->bo);
 
       if (tex_obj->base.StencilSampling ||
@@ -313,9 +314,9 @@ intel_update_state(struct gl_context * ctx, GLuint new_state)
             intel_renderbuffer(fb->_ColorDrawBuffers[i]);
 
          if (irb &&
-             intel_miptree_resolve_color(
-                brw, irb->mt, irb->mt_level, irb->mt_layer, irb->layer_count,
-                INTEL_MIPTREE_IGNORE_CCS_E))
+             intel_miptree_resolve_color(brw, irb->mt, irb->mt_level,
+                                         irb->mt_layer, irb->layer_count,
+                                         INTEL_RESOLVE_HINT_IGNORE_CCS_E))
             brw_render_cache_set_check_flush(brw, irb->mt->bo);
       }
    }

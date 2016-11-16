@@ -210,12 +210,12 @@ blorp_surf_for_miptree(struct brw_context *brw,
             surf->aux_usage = ISL_AUX_USAGE_NONE;
          }
       } else if (!(safe_aux_usage & (1 << surf->aux_usage))) {
-         uint32_t flags = 0;
-         if (safe_aux_usage & (1 << ISL_AUX_USAGE_CCS_E))
-            flags |= INTEL_MIPTREE_IGNORE_CCS_E;
+         const enum intel_resolve_hint hint =
+            safe_aux_usage & (1 << ISL_AUX_USAGE_CCS_E) ?
+            INTEL_RESOLVE_HINT_IGNORE_CCS_E : 0;
 
          intel_miptree_resolve_color(brw, mt,
-                                     *level, start_layer, num_layers, flags);
+                                     *level, start_layer, num_layers, hint);
 
          assert(!intel_miptree_has_color_unresolved(mt, *level, 1,
                                                     start_layer, num_layers));

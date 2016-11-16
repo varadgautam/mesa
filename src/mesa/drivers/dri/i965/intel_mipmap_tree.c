@@ -2306,7 +2306,7 @@ intel_miptree_used_for_rendering(const struct brw_context *brw,
 static bool
 intel_miptree_needs_color_resolve(const struct brw_context *brw,
                                   const struct intel_mipmap_tree *mt,
-                                  int flags)
+                                  enum intel_resolve_hint hint)
 {
    if (mt->no_ccs)
       return false;
@@ -2318,7 +2318,7 @@ intel_miptree_needs_color_resolve(const struct brw_context *brw,
     * surfaces called "lossless compressed". These don't need to be always
     * resolved.
     */
-   if ((flags & INTEL_MIPTREE_IGNORE_CCS_E) && is_lossless_compressed)
+   if ((hint == INTEL_RESOLVE_HINT_IGNORE_CCS_E) && is_lossless_compressed)
       return false;
 
    /* Fast color clear resolves only make sense for non-MSAA buffers. */
@@ -2332,11 +2332,11 @@ bool
 intel_miptree_resolve_color(struct brw_context *brw,
                             struct intel_mipmap_tree *mt, unsigned level,
                             unsigned start_layer, unsigned num_layers,
-                            int flags)
+                            enum intel_resolve_hint hint)
 {
    intel_miptree_check_color_resolve(brw, mt, level, start_layer);
 
-   if (!intel_miptree_needs_color_resolve(brw, mt, flags))
+   if (!intel_miptree_needs_color_resolve(brw, mt, hint))
       return false;
 
    /* Arrayed fast clear is only supported for gen8+. */
@@ -2365,9 +2365,9 @@ intel_miptree_resolve_color(struct brw_context *brw,
 void
 intel_miptree_all_slices_resolve_color(struct brw_context *brw,
                                        struct intel_mipmap_tree *mt,
-                                       int flags)
+                                       enum intel_resolve_hint hint)
 {
-   if (!intel_miptree_needs_color_resolve(brw, mt, flags))
+   if (!intel_miptree_needs_color_resolve(brw, mt, hint))
       return;
       
    foreach_list_typed_safe(struct intel_resolve_map, map, link,

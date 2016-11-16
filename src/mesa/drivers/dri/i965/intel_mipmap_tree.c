@@ -2353,7 +2353,14 @@ intel_miptree_make_shareable(struct brw_context *brw,
    assert(mt->msaa_layout == INTEL_MSAA_LAYOUT_NONE || mt->num_samples <= 1);
 
    if (mt->mcs_buf) {
-      intel_miptree_all_slices_resolve_color(brw, mt, 0);
+      intel_miptree_all_slices_resolve_color(brw, mt, mt->is_scanout ?
+                                             INTEL_RESOLVE_HINT_CLEAR_COLOR :
+                                             INTEL_RESOLVE_HINT_FULL);
+      if (mt->is_scanout) {
+         assert(!mt->hiz_buf);
+         return;
+      }
+
       mt->aux_disable |= (INTEL_AUX_DISABLE_CCS | INTEL_AUX_DISABLE_MCS);
       brw_bo_unreference(mt->mcs_buf->bo);
       free(mt->mcs_buf);

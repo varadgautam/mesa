@@ -40,6 +40,8 @@
 
 #define FILE_DEBUG_FLAG DEBUG_BLORP
 
+static const bool isl_hiz_debug_dump = false;
+
 static void
 brw_blorp_map(const struct blorp_context *blorp,
               const struct blorp_address *blorp_addr,
@@ -1041,20 +1043,14 @@ brw_blorp_resolve_color(struct brw_context *brw, struct intel_mipmap_tree *mt,
 }
 
 static void
-gen6_blorp_hiz_exec(struct brw_context *brw, struct intel_mipmap_tree *mt,
-                    unsigned int level, unsigned int layer, enum blorp_hiz_op op)
+hiz_dump_blorp_surf(const struct blorp_context *blorp,
+                    const struct blorp_surf *surf,
+                    const char *opname, const char *when)
 {
-   assert(intel_miptree_level_has_hiz(mt, level));
-
-   struct isl_surf isl_tmp[2];
-   struct blorp_surf surf;
-   blorp_surf_for_miptree(brw, &surf, mt, true, (1 << ISL_AUX_USAGE_HIZ),
-                          &level, layer, 1, isl_tmp);
-
-   struct blorp_batch batch;
-   blorp_batch_init(&brw->blorp, &batch, brw, 0);
-   blorp_gen6_hiz_op(&batch, &surf, level, layer, op);
-   blorp_batch_finish(&batch);
+   char *basename = ralloc_asprintf(NULL, "%s-%s", opname, when);
+   assert(basename);
+   blorp_surf_dump(blorp, surf, basename);
+   ralloc_free(basename);
 }
 
 /**
@@ -1074,25 +1070,47 @@ intel_hiz_exec(struct brw_context *brw, struct intel_mipmap_tree *mt,
 
    switch (op) {
    case BLORP_HIZ_OP_DEPTH_RESOLVE:
-      opname = "depth resolve";
+      opname = "depth-resolve";
       break;
    case BLORP_HIZ_OP_HIZ_RESOLVE:
-      opname = "hiz ambiguate";
+      opname = "hiz-ambiguate";
       break;
    case BLORP_HIZ_OP_DEPTH_CLEAR:
-      opname = "depth clear";
+      opname = "depth-clear";
       break;
    case BLORP_HIZ_OP_NONE:
-      opname = "noop?";
+      opname = "hiz-noop";
       break;
    }
 
    DBG("%s %s to mt %p level %d layer %d\n",
        __func__, opname, mt, level, layer);
 
+   assert(intel_miptree_level_has_hiz(mt, level));
+
+   struct isl_surf isl_tmp[2];
+   struct blorp_surf surf;
+   struct blorp_batch batch;
+   const bool need_blorp = brw->gen < 8 || isl_hiz_debug_dump;
+
+   if (need_blorp) {
+      blorp_surf_for_miptree(brw, &surf, mt, true, (1 << ISL_AUX_USAGE_HIZ),
+                             &level, layer, 1, isl_tmp);
+      blorp_batch_init(&brw->blorp, &batch, brw, 0);
+   }
+
+   if (isl_hiz_debug_dump)
+      hiz_dump_blorp_surf(batch.blorp, &surf, opname, "before");
+
    if (brw->gen >= 8) {
       gen8_hiz_exec(brw, mt, level, layer, op);
    } else {
-      gen6_blorp_hiz_exec(brw, mt, level, layer, op);
+      blorp_gen6_hiz_op(&batch, &surf, level, layer, op);
    }
+
+   if (isl_hiz_debug_dump)
+      hiz_dump_blorp_surf(batch.blorp, &surf, opname, "after");
+
+   if (need_blorp)
+      blorp_batch_finish(&batch);
 }

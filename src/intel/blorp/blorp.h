@@ -38,6 +38,7 @@ extern "C" {
 struct blorp_batch;
 struct blorp_params;
 struct blorp_address;
+struct brw_blorp_surface_info;
 
 struct blorp_context {
    void *driver_ctx;
@@ -220,6 +221,11 @@ void
 blorp_gen6_hiz_op(struct blorp_batch *batch,
                   struct blorp_surf *surf, unsigned level, unsigned layer,
                   enum blorp_hiz_op op);
+
+void
+blorp_surf_dump(const struct blorp_context *blorp,
+                const struct blorp_surf *surf,
+                const char *basename);
 
 #ifdef __cplusplus
 } /* end extern "C" */

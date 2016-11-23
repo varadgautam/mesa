@@ -1275,6 +1275,24 @@ dri2_query_dma_buf_formats(__DRIscreen *_screen, int max, int *formats,
    return false;
 }
 
+static boolean
+dri2_query_dma_buf_modifiers(__DRIscreen *_screen, int fourcc, int max,
+                             uint64_t *modifiers, int *count)
+{
+   struct dri_screen *screen = dri_screen(_screen);
+   struct pipe_screen *pscreen = screen->base.screen;
+   int dri_components;
+   enum pipe_format format = dri2_format_to_pipe_format(
+                                 convert_fourcc(fourcc,&dri_components));
+   const unsigned usage = PIPE_BIND_RENDER_TARGET | PIPE_BIND_SAMPLER_VIEW;
+
+   if (pscreen->get_param(pscreen, PIPE_CAP_QUERY_DMABUF_ATTRIBS) &&
+       pscreen->is_format_supported(pscreen, format, screen->target, 0, usage))
+      return pscreen->query_dmabuf_modifiers(pscreen, format, max, modifiers,
+                                             count);
+   return false;
+}
+
 static __DRIimage *
 dri2_from_dma_bufs(__DRIscreen *screen,
                    int width, int height, int fourcc,
@@ -1441,7 +1459,7 @@ dri2_get_capabilities(__DRIscreen *_screen)
 
 /* The extension is modified during runtime if DRI_PRIME is detected */
 static __DRIimageExtension dri2ImageExtension = {
-    .base = { __DRI_IMAGE, 15 },
+    .base = { __DRI_IMAGE, 16 },
 
     .createImageFromName          = dri2_create_image_from_name,
     .createImageFromRenderbuffer  = dri2_create_image_from_renderbuffer,
@@ -1462,6 +1480,7 @@ static __DRIimageExtension dri2ImageExtension = {
     .createImageWithModifiers     = NULL,
     .createImageFromDmaBufs2      = NULL,
     .queryDmaBufFormats           = NULL,
+    .queryDmaBufModifiers         = NULL,
 };
 
 
@@ -2009,6 +2028,8 @@ dri2_init_screen(__DRIscreen * sPriv)
          dri2ImageExtension.createImageFromDmaBufs = dri2_from_dma_bufs;
          dri2ImageExtension.createImageFromDmaBufs2 = dri2_from_dma_bufs2;
          dri2ImageExtension.queryDmaBufFormats = dri2_query_dma_buf_formats;
+         dri2ImageExtension.queryDmaBufModifiers =
+                                    dri2_query_dma_buf_modifiers;
       }
    }
 
@@ -2083,6 +2104,7 @@ dri_kms_init_screen(__DRIscreen * sPriv)
       dri2ImageExtension.createImageFromDmaBufs = dri2_from_dma_bufs;
       dri2ImageExtension.createImageFromDmaBufs2 = dri2_from_dma_bufs2;
       dri2ImageExtension.queryDmaBufFormats = dri2_query_dma_buf_formats;
+      dri2ImageExtension.queryDmaBufModifiers = dri2_query_dma_buf_modifiers;
    }
 
    sPriv->extensions = dri_screen_extensions;

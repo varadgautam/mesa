@@ -2143,6 +2143,52 @@ dri2_query_dma_buf_formats(_EGLDriver *drv, _EGLDisplay *disp,
    return EGL_TRUE;
 }
 
+static EGLBoolean
+dri2_query_dma_buf_modifiers(_EGLDriver *drv, _EGLDisplay *disp, EGLint format,
+                             EGLint max, EGLuint64KHR *modifiers,
+                             EGLBoolean *external_only, EGLint *count)
+{
+   struct dri2_egl_display *dri2_dpy = dri2_egl_display(disp);
+   EGLint* formats;
+   EGLint num_formats;
+   EGLint i;
+
+   if (max < 0) {
+      _eglError(EGL_BAD_PARAMETER, "invalid value for max count of formats");
+      return EGL_FALSE;
+   }
+
+   if (max > 0 && modifiers == NULL) {
+      _eglError(EGL_BAD_PARAMETER, "invalid modifiers array");
+      return EGL_FALSE;
+   }
+
+   /* query and check if the received format is supported */
+   dri2_dpy->image->queryDmaBufFormats(dri2_dpy->dri_screen, 0, NULL,
+                                       &num_formats);
+   formats = calloc(num_formats, sizeof(EGLint));
+   dri2_dpy->image->queryDmaBufFormats(dri2_dpy->dri_screen, num_formats,
+                                       formats, &num_formats);
+   for (i = 0; i < num_formats; i++) {
+      if (format == formats[i])
+         break;
+   }
+   if (i == num_formats) {
+      _eglError(EGL_BAD_PARAMETER, "invalid format");
+      return EGL_FALSE;
+   }
+
+   dri2_dpy->image->queryDmaBufModifiers(dri2_dpy->dri_screen, format, max,
+                                         modifiers, count);
+
+   if (external_only != NULL) {
+      for (i = 0; i < *count && i < max; i++)
+         external_only[i] = EGL_TRUE;
+   }
+
+   return EGL_TRUE;
+}
+
 /**
  * The spec says:
  *
@@ -3076,6 +3122,7 @@ _eglBuiltInDriverDRI2(const char *args)
    dri2_drv->base.API.ExportDMABUFImageQueryMESA = dri2_export_dma_buf_image_query_mesa;
    dri2_drv->base.API.ExportDMABUFImageMESA = dri2_export_dma_buf_image_mesa;
    dri2_drv->base.API.QueryDmaBufFormatsEXT = dri2_query_dma_buf_formats;
+   dri2_drv->base.API.QueryDmaBufModifiersEXT = dri2_query_dma_buf_modifiers;
 #endif
 #ifdef HAVE_WAYLAND_PLATFORM
    dri2_drv->base.API.BindWaylandDisplayWL = dri2_bind_wayland_display_wl;

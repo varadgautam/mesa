@@ -1464,6 +1464,26 @@ struct __DRIimageExtensionRec {
                                           enum __DRIChromaSiting vert_siting,
                                           unsigned *error,
                                           void *loaderPrivate);
+
+   /*
+    * Returns the dmabuf formats supported by the driver
+    *
+    * For EGL_EXT_image_dma_buf_import_modifiers.
+    *
+    * \since 15
+    */
+   void (*queryDmaBufFormats)(__DRIscreen *screen, int max, int *formats,
+                              int *count);
+
+   /*
+    * Returns modifiers supported by the driver for a given format.
+    *
+    * For EGL_EXT_image_dma_buf_import_modifiers.
+    *
+    * \since 15
+    */
+   void (*queryDmaBufModifiers)(__DRIscreen *screen, int fourcc, int max,
+                                uint64_t *modifiers, int *count);
 };
 
 

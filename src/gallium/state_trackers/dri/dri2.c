@@ -1274,6 +1274,21 @@ dri2_query_dma_buf_formats(__DRIscreen *_screen, int max, int *formats,
       pscreen->query_dmabuf_formats(pscreen, max, formats, count);
 }
 
+static void
+dri2_query_dma_buf_modifiers(__DRIscreen *_screen, int fourcc, int max,
+                             uint64_t *modifiers, int *count)
+{
+   struct dri_screen *screen = dri_screen(_screen);
+   struct pipe_screen *pscreen = screen->base.screen;
+   int dri_components;
+   enum pipe_format format = dri2_format_to_pipe_format(
+                                 convert_fourcc(fourcc,&dri_components));
+
+   if (pscreen->get_param(pscreen, PIPE_CAP_QUERY_DMABUF_ATTRIBS))
+      pscreen->query_dmabuf_modifiers(pscreen, format, max, modifiers,
+                                        count);
+}
+
 static __DRIimage *
 dri2_from_dma_bufs(__DRIscreen *screen,
                    int width, int height, int fourcc,
@@ -1461,6 +1476,7 @@ static __DRIimageExtension dri2ImageExtension = {
     .createImageWithModifiers     = NULL,
     .createImageFromDmaBufs2      = NULL,
     .queryDmaBufFormats           = NULL,
+    .queryDmaBufModifiers         = NULL,
 };
 
 
@@ -2008,6 +2024,8 @@ dri2_init_screen(__DRIscreen * sPriv)
          dri2ImageExtension.createImageFromDmaBufs = dri2_from_dma_bufs;
          dri2ImageExtension.createImageFromDmaBufs2 = dri2_from_dma_bufs2;
          dri2ImageExtension.queryDmaBufFormats = dri2_query_dma_buf_formats;
+         dri2ImageExtension.queryDmaBufModifiers =
+                                    dri2_query_dma_buf_modifiers;
       }
    }
 
@@ -2082,6 +2100,7 @@ dri_kms_init_screen(__DRIscreen * sPriv)
       dri2ImageExtension.createImageFromDmaBufs = dri2_from_dma_bufs;
       dri2ImageExtension.createImageFromDmaBufs2 = dri2_from_dma_bufs2;
       dri2ImageExtension.queryDmaBufFormats = dri2_query_dma_buf_formats;
+      dri2ImageExtension.queryDmaBufModifiers = dri2_query_dma_buf_modifiers;
    }
 
    sPriv->extensions = dri_screen_extensions;

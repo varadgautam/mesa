@@ -1944,6 +1944,33 @@ dri2_check_dma_buf_attribs(const _EGLImageAttribs *attrs)
       }
    }
 
+   /**
+    * If <target> is EGL_LINUX_DMA_BUF_EXT, both or neither of the following
+    * attribute values may be given.
+    *
+    * This is referring to EGL_DMA_BUF_PLANE0_MODIFIER_LO_EXT and
+    * EGL_DMA_BUF_PLANE0_MODIFIER_HI_EXT, and the same for other planes.
+    */
+   for (i = 0; i < DMA_BUF_MAX_PLANES; ++i) {
+      if (attrs->DMABufPlaneModifiersLo[i].IsPresent !=
+          attrs->DMABufPlaneModifiersHi[i].IsPresent) {
+         _eglError(EGL_BAD_PARAMETER, "modifier attribute lo or hi missing");
+         return EGL_FALSE;
+      }
+   }
+
+   for (i = 0; i < DMA_BUF_MAX_PLANES; ++i) {
+      if (attrs->DMABufPlaneModifiersLo[i].IsPresent) {
+         if ((attrs->DMABufPlaneModifiersLo[0].Value !=
+             attrs->DMABufPlaneModifiersLo[i].Value) ||
+             (attrs->DMABufPlaneModifiersHi[0].Value !=
+             attrs->DMABufPlaneModifiersHi[i].Value)) {
+            _eglError(EGL_BAD_PARAMETER, "modifier attributes not equal");
+            return EGL_FALSE;
+         }
+      }
+   }
+
    return EGL_TRUE;
 }
 
@@ -2050,7 +2077,9 @@ dri2_check_dma_buf_format(const _EGLImageAttribs *attrs)
    for (i = plane_n; i < DMA_BUF_MAX_PLANES; ++i) {
       if (attrs->DMABufPlaneFds[i].IsPresent ||
           attrs->DMABufPlaneOffsets[i].IsPresent ||
-          attrs->DMABufPlanePitches[i].IsPresent) {
+          attrs->DMABufPlanePitches[i].IsPresent ||
+          attrs->DMABufPlaneModifiersLo[i].IsPresent ||
+          attrs->DMABufPlaneModifiersHi[i].IsPresent) {
          _eglError(EGL_BAD_ATTRIBUTE, "too many plane attributes");
          return 0;
       }
@@ -2083,6 +2112,8 @@ dri2_create_image_dma_buf(_EGLDisplay *disp, _EGLContext *ctx,
    int fds[DMA_BUF_MAX_PLANES];
    int pitches[DMA_BUF_MAX_PLANES];
    int offsets[DMA_BUF_MAX_PLANES];
+   uint64_t modifiers[DMA_BUF_MAX_PLANES];
+   bool has_modifier = false;
    unsigned error;
 
    /**
@@ -2113,18 +2144,44 @@ dri2_create_image_dma_buf(_EGLDisplay *disp, _EGLContext *ctx,
       fds[i] = attrs.DMABufPlaneFds[i].Value;
       pitches[i] = attrs.DMABufPlanePitches[i].Value;
       offsets[i] = attrs.DMABufPlaneOffsets[i].Value;
+      if (attrs.DMABufPlaneModifiersLo[i].IsPresent) {
+         modifiers[i] =
+            ((uint64_t) attrs.DMABufPlaneModifiersHi[i].Value << 32) |
+            attrs.DMABufPlaneModifiersLo[i].Value;
+         has_modifier = true;
+      } else {
+         modifiers[i] = 0;
+      }
    }
 
-   dri_image =
-      dri2_dpy->image->createImageFromDmaBufs(dri2_dpy->dri_screen,
-         attrs.Width, attrs.Height, attrs.DMABufFourCC.Value,
-         fds, num_fds, pitches, offsets,
-         attrs.DMABufYuvColorSpaceHint.Value,
-         attrs.DMABufSampleRangeHint.Value,
-         attrs.DMABufChromaHorizontalSiting.Value,
-         attrs.DMABufChromaVerticalSiting.Value,
-         &error,
-         NULL);
+   if (has_modifier && dri2_dpy->image->createImageFromDmaBufs2) {
+      dri_image =
+         dri2_dpy->image->createImageFromDmaBufs2(dri2_dpy->dri_screen,
+            attrs.Width, attrs.Height, attrs.DMABufFourCC.Value,
+            fds, num_fds, pitches, offsets, modifiers,
+            attrs.DMABufYuvColorSpaceHint.Value,
+            attrs.DMABufSampleRangeHint.Value,
+            attrs.DMABufChromaHorizontalSiting.Value,
+            attrs.DMABufChromaVerticalSiting.Value,
+            &error,
+            NULL);
+   } else {
+      if (has_modifier) {
+         _eglError(EGL_BAD_MATCH, "unsupported dma_buf format modifier");
+         return EGL_NO_IMAGE_KHR;
+      }
+
+      dri_image =
+         dri2_dpy->image->createImageFromDmaBufs(dri2_dpy->dri_screen,
+            attrs.Width, attrs.Height, attrs.DMABufFourCC.Value,
+            fds, num_fds, pitches, offsets,
+            attrs.DMABufYuvColorSpaceHint.Value,
+            attrs.DMABufSampleRangeHint.Value,
+            attrs.DMABufChromaHorizontalSiting.Value,
+            attrs.DMABufChromaVerticalSiting.Value,
+            &error,
+            NULL);
+   }
    dri2_create_image_khr_texture_error(error);
 
    if (!dri_image)

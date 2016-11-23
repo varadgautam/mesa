@@ -300,6 +300,26 @@ struct pipe_screen {
    const void *(*get_compiler_options)(struct pipe_screen *screen,
                                       enum pipe_shader_ir ir,
                                       unsigned shader);
+
+   /**
+    * Get driver-supported drm_fourcc formats.
+    * If \p max is 0, the total number of supported formats is returned
+    * in \p count, with no modification to \p formats. Otherwise, \p formats
+    * is filled with upto \p max supported format codes.
+    */
+   void (*query_dmabuf_formats)(struct pipe_screen *screen, int max,
+                                 int *formats, int *count);
+
+   /**
+    * Get supported modifiers for a format.
+    * If \p max is 0, the total number of supported modifiers for the supplied
+    * format is returned in \p count, with no modification to \p modifiers.
+    * Otherwise, \p modifiers is filled with upto \p max supported modifier
+    * codes.
+    */
+   void (*query_dmabuf_modifiers)(struct pipe_screen *screen,
+                                    enum pipe_format format, int max,
+                                    uint64_t *modifiers, int *count);
 };
 
 

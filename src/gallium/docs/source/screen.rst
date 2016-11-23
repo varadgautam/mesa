@@ -366,6 +366,8 @@ The integer capabilities:
   ARB_transform_feedback3.
 * ``PIPE_CAP_TGSI_CAN_READ_OUTPUTS``: Whether every TGSI shader stage can read
   from the output file.
+* ``PIPE_CAP_QUERY_DMABUF_ATTRIBS``: Whether the driver supports querying for
+  supported dmabuf formats and format modifiers.
 
 
 .. _pipe_capf:

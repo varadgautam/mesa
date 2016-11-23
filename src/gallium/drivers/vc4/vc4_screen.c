@@ -240,6 +240,7 @@ vc4_screen_get_param(struct pipe_screen *pscreen, enum pipe_cap param)
         case PIPE_CAP_VIEWPORT_SUBPIXEL_BITS:
         case PIPE_CAP_TGSI_ARRAY_COMPONENTS:
         case PIPE_CAP_TGSI_CAN_READ_OUTPUTS:
+        case PIPE_CAP_QUERY_DMABUF_ATTRIBS:
                 return 0;
 
                 /* Stream output. */

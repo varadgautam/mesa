@@ -1136,7 +1136,7 @@ struct __DRIdri2ExtensionRec {
  * extensions.
  */
 #define __DRI_IMAGE "DRI_IMAGE"
-#define __DRI_IMAGE_VERSION 15
+#define __DRI_IMAGE_VERSION 16
 
 /**
  * These formats correspond to the similarly named MESA_FORMAT_*
@@ -1512,6 +1512,46 @@ struct __DRIimageExtensionRec {
                                           enum __DRIChromaSiting vert_siting,
                                           unsigned *error,
                                           void *loaderPrivate);
+
+   /*
+    * dmabuf format query to support EGL_EXT_image_dma_buf_import_modifiers.
+    *
+    * \param max      Maximum number of formats that can be accomodated into
+    *                 \param formats. If zero, no formats are returned -
+    *                 instead, the driver returns the total number of
+    *                 supported dmabuf formats in \param count.
+    * \param formats  Buffer to fill formats into.
+    * \param count    Count of formats returned, or, total number of
+    *                 supported formats in case \param max is zero.
+    *
+    * Returns true on success.
+    *
+    * \since 16
+    */
+   GLboolean (*queryDmaBufFormats)(__DRIscreen *screen, int max, int *formats,
+                              int *count);
+
+   /*
+    * dmabuf format modifier query for a given format to support
+    * EGL_EXT_image_dma_buf_import_modifiers.
+    *
+    * \param fourcc    The format to query modifiers for. If this format
+    *                  is not supported by the driver, return false.
+    * \param max       Maximum number of modifiers that can be accomodated in
+    *                  \param modifiers. If zero, no modifiers are returned -
+    *                  instead, the driver returns the total number of
+    *                  modifiers for \param format in \param count.
+    * \param modifiers Buffer to fill modifiers into.
+    * \param count     Count of the modifiers returned, or, total number of
+    *                  supported modifiers for \param fourcc in case
+    *                  \param max is zero.
+    *
+    * Returns true upon success.
+    *
+    * \since 16
+    */
+   GLboolean (*queryDmaBufModifiers)(__DRIscreen *screen, int fourcc, int max,
+                                uint64_t *modifiers, int *count);
 };
 
 

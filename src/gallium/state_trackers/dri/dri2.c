@@ -1263,6 +1263,18 @@ dri2_from_fds(__DRIscreen *screen, int width, int height, int fourcc,
    return img;
 }
 
+static boolean
+dri2_query_dma_buf_formats(__DRIscreen *_screen, int max, int *formats,
+                           int *count)
+{
+   struct dri_screen *screen = dri_screen(_screen);
+   struct pipe_screen *pscreen = screen->base.screen;
+
+   if (pscreen->get_param(pscreen, PIPE_CAP_QUERY_DMABUF_ATTRIBS))
+      return pscreen->query_dmabuf_formats(pscreen, max, formats, count);
+   return false;
+}
+
 static __DRIimage *
 dri2_from_dma_bufs(__DRIscreen *screen,
                    int width, int height, int fourcc,
@@ -1449,6 +1461,7 @@ static __DRIimageExtension dri2ImageExtension = {
     .unmapImage                   = dri2_unmap_image,
     .createImageWithModifiers     = NULL,
     .createImageFromDmaBufs2      = NULL,
+    .queryDmaBufFormats           = NULL,
 };
 
 
@@ -1995,6 +2008,7 @@ dri2_init_screen(__DRIscreen * sPriv)
          dri2ImageExtension.createImageFromFds = dri2_from_fds;
          dri2ImageExtension.createImageFromDmaBufs = dri2_from_dma_bufs;
          dri2ImageExtension.createImageFromDmaBufs2 = dri2_from_dma_bufs2;
+         dri2ImageExtension.queryDmaBufFormats = dri2_query_dma_buf_formats;
       }
    }
 
@@ -2068,6 +2082,7 @@ dri_kms_init_screen(__DRIscreen * sPriv)
       dri2ImageExtension.createImageFromFds = dri2_from_fds;
       dri2ImageExtension.createImageFromDmaBufs = dri2_from_dma_bufs;
       dri2ImageExtension.createImageFromDmaBufs2 = dri2_from_dma_bufs2;
+      dri2ImageExtension.queryDmaBufFormats = dri2_query_dma_buf_formats;
    }
 
    sPriv->extensions = dri_screen_extensions;

@@ -196,6 +196,10 @@ struct _egl_api
    int (*GLInteropExportObject)(_EGLDisplay *dpy, _EGLContext *ctx,
                                 struct mesa_glinterop_export_in *in,
                                 struct mesa_glinterop_export_out *out);
+
+   EGLBoolean (*QueryDmaBufFormatsEXT)(_EGLDriver *drv, _EGLDisplay *dpy,
+                                       EGLint max_formats, EGLint *formats,
+                                       EGLint *num_formats);
 };
 
 EGLint _eglConvertIntsToAttribs(const EGLint *int_list,

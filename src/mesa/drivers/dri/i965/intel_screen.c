@@ -549,6 +549,7 @@ create_image_with_modifier(struct intel_screen *screen,
    uint32_t requested_tiling = 0, tiling = 0;
    unsigned long pitch;
    unsigned tiled_height = 0;
+   unsigned ccs_height = 0;
 
    switch (modifier) {
    case I915_FORMAT_MOD_Y_TILED:
@@ -566,10 +567,33 @@ create_image_with_modifier(struct intel_screen *screen,
    /* For now, all modifiers require some tiling */
    assert(tiling);
 
+   /*
+    * CCS width is always going to be less than or equal to the image's width.
+    * All we need to do is make sure we add extra rows (height) for the CCS.
+    *
+    * A pair of CCS bits correspond to 8x4 pixels, and must be cacheline
+    * granularity. Each CCS tile is laid out in 8b strips, which corresponds to
+    * 1024x512 pixel region. In memory, it looks like the following:
+    *
+    * ┌─────────────────┐
+    * │                 │
+    * │                 │
+    * │                 │
+    * │      Image      │
+    * │                 │
+    * │                 │
+    * │xxxxxxxxxxxxxxxxx│
+    * ├─────┬───────────┘
+    * │     │           |
+    * │ccs  │  unused   |
+    * └─────┘-----------┘
+    * <------pitch------>
+    */
    cpp = _mesa_get_format_bytes(image->format);
-   image->bo = drm_intel_bo_alloc_tiled(screen->bufmgr, "image+mod",
-                                        width, tiled_height, cpp, &tiling,
-                                        &pitch, 0);
+   image->bo = drm_intel_bo_alloc_tiled(screen->bufmgr,
+                                        ccs_height ? "image+ccs" : "image+mod",
+                                        width, tiled_height + ccs_height,
+                                        cpp, &tiling, &pitch, 0);
    if (image->bo == NULL)
       return false;
 
@@ -587,7 +611,8 @@ create_image_with_modifier(struct intel_screen *screen,
    if (image->planar_format)
       assert(image->planar_format->nplanes == 1);
 
-   image->aux_offset = 0; /* y_tiled_height * pitch; */
+   if (ccs_height)
+      image->aux_offset = tiled_height * pitch /* + mt->offset */;
 
    return true;
 }

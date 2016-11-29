@@ -157,7 +157,7 @@ intel_miptree_supports_non_msrt_fast_clear(struct brw_context *brw,
    if (mt->disable_aux_buffers)
       return false;
 
-   if (mt->is_scanout)
+   if (mt->is_scanout && mt->msaa_layout != INTEL_MSAA_LAYOUT_CMS)
       return false;
 
    /* This function applies only to non-multisampled render targets. */
@@ -528,10 +528,6 @@ intel_miptree_create_layout(struct brw_context *brw,
       const UNUSED bool is_lossless_compressed_aux =
          brw->gen >= 9 && num_samples == 1 &&
          mt->format == MESA_FORMAT_R_UINT32;
-
-      /* For now, nothing else has this requirement */
-      assert(is_lossless_compressed_aux ||
-             (layout_flags & MIPTREE_LAYOUT_FORCE_HALIGN16) == 0);
    }
 
    brw_miptree_layout(brw, mt, layout_flags);
@@ -752,11 +748,9 @@ intel_miptree_create(struct brw_context *brw,
        * resolves.
        */
       const bool lossless_compression_disabled = INTEL_DEBUG & DEBUG_NO_RBC;
-      assert(!mt->is_scanout);
       const bool is_lossless_compressed =
          unlikely(!lossless_compression_disabled) &&
-         brw->gen >= 9 && !mt->is_scanout &&
-         intel_miptree_supports_lossless_compressed(brw, mt);
+         brw->gen >= 9 && intel_miptree_supports_lossless_compressed(brw, mt);
 
       if (is_lossless_compressed) {
          intel_miptree_alloc_non_msrt_mcs(brw, mt, is_lossless_compressed);
@@ -1043,7 +1037,7 @@ intel_miptree_release(struct intel_mipmap_tree **mt)
             drm_intel_bo_unreference((*mt)->hiz_buf->aux_base.bo);
          free((*mt)->hiz_buf);
       }
-      if ((*mt)->mcs_buf && !(*mt)->is_scanout) {
+      if ((*mt)->mcs_buf) {
          drm_intel_bo_unreference((*mt)->mcs_buf->bo);
          free((*mt)->mcs_buf);
       }

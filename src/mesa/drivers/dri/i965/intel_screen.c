@@ -572,6 +572,11 @@ create_image_with_modifier(struct intel_screen *screen,
    image->tile_y = I915_TILING_Y;
    image->modifier = modifier;
 
+   if (image->planar_format)
+      assert(image->planar_format->nplanes == 1);
+
+   image->aux_offset = 0; /* y_tiled_height * pitch; */
+
    return true;
 }
 

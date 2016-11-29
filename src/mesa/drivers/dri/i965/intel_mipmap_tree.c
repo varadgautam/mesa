@@ -157,7 +157,7 @@ intel_miptree_supports_non_msrt_fast_clear(struct brw_context *brw,
    if (mt->aux_disable & INTEL_AUX_DISABLE_MCS)
       return false;
 
-   if (mt->is_scanout)
+   if (mt->is_scanout && mt->msaa_layout != INTEL_MSAA_LAYOUT_CMS)
       return false;
 
    /* This function applies only to non-multisampled render targets. */
@@ -526,8 +526,12 @@ intel_miptree_create_layout(struct brw_context *brw,
       layout_flags |= MIPTREE_LAYOUT_FORCE_HALIGN16;
    } else {
       const UNUSED bool is_lossless_compressed_aux =
-         brw->gen >= 9 && num_samples == 1 &&
-         mt->format == MESA_FORMAT_R_UINT32;
+         brw->gen >= 9 &&
+         /* Is lossless compressed texture */
+         ((num_samples == 1 && mt->format == MESA_FORMAT_R_UINT32) ||
+          /* Is lossless compressed scanout */
+         (num_samples == 0 && (mt->format == MESA_FORMAT_B8G8R8X8_UNORM ||
+                               mt->format == MESA_FORMAT_R8G8B8X8_UNORM)));
 
       /* For now, nothing else has this requirement */
       assert(is_lossless_compressed_aux ||
@@ -752,11 +756,9 @@ intel_miptree_create(struct brw_context *brw,
        * resolves.
        */
       const bool lossless_compression_disabled = INTEL_DEBUG & DEBUG_NO_RBC;
-      assert(!mt->is_scanout);
       const bool is_lossless_compressed =
          unlikely(!lossless_compression_disabled) &&
-         brw->gen >= 9 && !mt->is_scanout &&
-         intel_miptree_supports_lossless_compressed(brw, mt);
+         brw->gen >= 9 && intel_miptree_supports_lossless_compressed(brw, mt);
 
       if (is_lossless_compressed) {
          intel_miptree_alloc_non_msrt_mcs(brw, mt, is_lossless_compressed);
@@ -1058,7 +1060,7 @@ intel_miptree_release(struct intel_mipmap_tree **mt)
       intel_miptree_release(&(*mt)->stencil_mt);
       intel_miptree_release(&(*mt)->r8stencil_mt);
       intel_miptree_hiz_buffer_free((*mt)->hiz_buf);
-      if ((*mt)->mcs_buf && !(*mt)->is_scanout) {
+      if ((*mt)->mcs_buf) {
          drm_intel_bo_unreference((*mt)->mcs_buf->bo);
          free((*mt)->mcs_buf);
       }

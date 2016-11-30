@@ -983,7 +983,10 @@ intel_from_planar(__DRIimage *parent, int plane, void *loaderPrivate)
     if (parent == NULL || parent->planar_format == NULL) {
        if (is_aux) {
           offset = parent->aux_offset;
-          stride = ALIGN(parent->pitch / 32, 128);
+          /* Make CCS stride match kernel's expectations. Mesa's internals
+           * expect: stride = ALIGN(parent->pitch / 32, 128)
+           */
+          stride = ALIGN(parent->pitch / 64, 128);
           height = ALIGN(DIV_ROUND_UP(parent->height, 16), 32);
           dri_format = parent->dri_format;
           goto done;

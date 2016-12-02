@@ -622,6 +622,33 @@ gbm_dri_bo_get_planes(struct gbm_bo *_bo)
    return get_number_planes(dri, bo->image);
 }
 
+static union gbm_bo_handle
+gbm_dri_bo_get_handle_for_plane(struct gbm_bo *_bo, int plane)
+{
+   struct gbm_dri_device *dri = gbm_dri_device(_bo->gbm);
+   struct gbm_dri_bo *bo = gbm_dri_bo(_bo);
+   union gbm_bo_handle ret;
+   ret.s32 = 0;
+
+   if (!dri->image || dri->image->base.version < 13 || !dri->image->fromPlanar) {
+      errno = ENOSYS;
+      return ret;
+   }
+
+   if (plane >= get_number_planes(dri, bo->image))
+      return ret;
+
+   __DRIimage *image = dri->image->fromPlanar(bo->image, plane, NULL);
+   if (!image) {
+      /* Use the parent's handle */
+      image = bo->image;
+   }
+
+   dri->image->queryImage(image, __DRI_IMAGE_ATTRIB_HANDLE, &ret.s32);
+
+   return ret;
+}
+
 static void
 gbm_dri_bo_destroy(struct gbm_bo *_bo)
 {
@@ -1080,6 +1107,7 @@ dri_device_create(int fd)
    dri->base.base.bo_write = gbm_dri_bo_write;
    dri->base.base.bo_get_fd = gbm_dri_bo_get_fd;
    dri->base.base.bo_get_planes = gbm_dri_bo_get_planes;
+   dri->base.base.bo_get_handle = gbm_dri_bo_get_handle_for_plane;
    dri->base.base.bo_destroy = gbm_dri_bo_destroy;
    dri->base.base.destroy = dri_destroy;
    dri->base.base.surface_create = gbm_dri_surface_create;

@@ -848,14 +848,17 @@ intel_create_image_from_names(__DRIscreen *dri_screen,
 }
 
 static __DRIimage *
-intel_create_image_from_fds(__DRIscreen *dri_screen,
-                            int width, int height, int fourcc,
-                            int *fds, int num_fds, int *strides, int *offsets,
-                            void *loaderPrivate)
+intel_create_image_from_fds_common(__DRIscreen *dri_screen,
+                                   int width, int height, int fourcc,
+                                   int *fds, int num_fds, int *strides,
+                                   int *offsets, uint64_t *modifiers,
+                                   void *loaderPrivate)
 {
    struct intel_screen *screen = dri_screen->driverPrivate;
    struct intel_image_format *f;
    __DRIimage *image;
+   unsigned tiling, y_tiled_height = 0;
+   unsigned ccs_height = 0;
    int i, index;
 
    if (fds == NULL || num_fds < 1)
@@ -869,6 +872,17 @@ intel_create_image_from_fds(__DRIscreen *dri_screen,
    f = intel_image_format_lookup(fourcc);
    if (f == NULL)
       return NULL;
+
+   if (modifiers) {
+      assert(f->nplanes == 1);
+      switch (modifiers[0]) {
+      case fourcc_mod_code(INTEL, 4):
+         ccs_height = ALIGN(DIV_ROUND_UP(height, 16), 32);
+      case I915_FORMAT_MOD_Y_TILED:
+         y_tiled_height = ALIGN(height, 32);
+         tiling = I915_TILING_Y;
+      }
+   }
 
    if (f->nplanes == 1)
       image = intel_allocate_image(screen, f->planes[0].dri_format,
@@ -884,6 +898,10 @@ intel_create_image_from_fds(__DRIscreen *dri_screen,
    image->height = height;
    image->pitch = strides[0];
 
+   if (modifiers) {
+      image->tile_y = tiling == I915_TILING_Y;
+      image->modifier = modifiers[0];
+   }
    image->planar_format = f;
    int size = 0;
    for (i = 0; i < f->nplanes; i++) {
@@ -891,8 +909,11 @@ intel_create_image_from_fds(__DRIscreen *dri_screen,
       image->offsets[index] = offsets[index];
       image->strides[index] = strides[index];
 
-      const int plane_height = height >> f->planes[i].height_shift;
-      const int end = offsets[index] + plane_height * strides[index];
+      const int plane_height =
+         (image->tile_y ? y_tiled_height : height) >>
+            f->planes[i].height_shift;
+      const int end =
+          offsets[index] + (plane_height + ccs_height) * strides[index];
       if (size < end)
          size = end;
    }
@@ -906,6 +927,8 @@ intel_create_image_from_fds(__DRIscreen *dri_screen,
 
    if (f->nplanes == 1) {
       image->offset = image->offsets[0];
+      if (ccs_height)
+         image->aux_offset = y_tiled_height * image->pitch;
       intel_image_warn_if_unaligned(image, __func__);
    }
 
@@ -913,10 +936,22 @@ intel_create_image_from_fds(__DRIscreen *dri_screen,
 }
 
 static __DRIimage *
-intel_create_image_from_dma_bufs(__DRIscreen *dri_screen,
+intel_create_image_from_fds(__DRIscreen *dri_screen,
+                            int width, int height, int fourcc,
+                            int *fds, int num_fds, int *strides, int *offsets,
+                            void *loaderPrivate)
+{
+   return intel_create_image_from_fds_common(dri_screen, width, height,
+                                             fourcc, fds, num_fds, strides,
+                                             offsets, NULL, loaderPrivate);
+}
+
+static __DRIimage *
+intel_create_image_from_dma_bufs_common(__DRIscreen *dri_screen,
                                  int width, int height, int fourcc,
                                  int *fds, int num_fds,
                                  int *strides, int *offsets,
+                                 uint64_t *modifiers,
                                  enum __DRIYUVColorSpace yuv_color_space,
                                  enum __DRISampleRange sample_range,
                                  enum __DRIChromaSiting horizontal_siting,
@@ -932,9 +967,10 @@ intel_create_image_from_dma_bufs(__DRIscreen *dri_screen,
       return NULL;
    }
 
-   image = intel_create_image_from_fds(dri_screen, width, height, fourcc, fds,
-                                       num_fds, strides, offsets,
-                                       loaderPrivate);
+   image = intel_create_image_from_fds_common(dri_screen, width, height,
+                                              fourcc, fds, num_fds,
+                                              strides, offsets,
+                                              modifiers, loaderPrivate);
 
    /*
     * Invalid parameters and any inconsistencies between are assumed to be
@@ -954,6 +990,52 @@ intel_create_image_from_dma_bufs(__DRIscreen *dri_screen,
 
    *error = __DRI_IMAGE_ERROR_SUCCESS;
    return image;
+}
+
+static __DRIimage *
+intel_create_image_from_dma_bufs(__DRIscreen *dri_screen,
+                                 int width, int height, int fourcc,
+                                 int *fds, int num_fds,
+                                 int *strides, int *offsets,
+                                 enum __DRIYUVColorSpace yuv_color_space,
+                                 enum __DRISampleRange sample_range,
+                                 enum __DRIChromaSiting horizontal_siting,
+                                 enum __DRIChromaSiting vertical_siting,
+                                 unsigned *error,
+                                 void *loaderPrivate)
+{
+   return intel_create_image_from_dma_bufs_common(dri_screen, width, height,
+                                                  fourcc, fds, num_fds,
+                                                  strides, offsets, NULL,
+                                                  yuv_color_space,
+                                                  sample_range,
+                                                  horizontal_siting,
+                                                  vertical_siting, error,
+                                                  loaderPrivate);
+}
+
+static __DRIimage *
+intel_create_image_from_dma_bufs2(__DRIscreen *dri_screen,
+                                  int width, int height, int fourcc,
+                                  int *fds, int num_fds,
+                                  int *strides, int *offsets,
+                                  uint64_t *modifiers,
+                                  enum __DRIYUVColorSpace yuv_color_space,
+                                  enum __DRISampleRange sample_range,
+                                  enum __DRIChromaSiting horizontal_siting,
+                                  enum __DRIChromaSiting vertical_siting,
+                                  unsigned *error,
+                                  void *loaderPrivate)
+{
+   return intel_create_image_from_dma_bufs_common(dri_screen, width, height,
+                                                  fourcc, fds, num_fds,
+                                                  strides, offsets,
+                                                  modifiers,
+                                                  yuv_color_space,
+                                                  sample_range,
+                                                  horizontal_siting,
+                                                  vertical_siting, error,
+                                                  loaderPrivate);
 }
 
 static __DRIimage *
@@ -1012,7 +1094,7 @@ done:
 }
 
 static const __DRIimageExtension intelImageExtension = {
-    .base = { __DRI_IMAGE, 14 },
+    .base = { __DRI_IMAGE, 15 },
 
     .createImageFromName                = intel_create_image_from_name,
     .createImageFromRenderbuffer        = intel_create_image_from_renderbuffer,
@@ -1031,6 +1113,7 @@ static const __DRIimageExtension intelImageExtension = {
     .mapImage                           = NULL,
     .unmapImage                         = NULL,
     .createImageWithModifiers           = intel_create_image_with_modifiers,
+    .createImageFromDmaBufs2            = intel_create_image_from_dma_bufs2,
 };
 
 static int

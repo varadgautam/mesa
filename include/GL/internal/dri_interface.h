@@ -1136,7 +1136,7 @@ struct __DRIdri2ExtensionRec {
  * extensions.
  */
 #define __DRI_IMAGE "DRI_IMAGE"
-#define __DRI_IMAGE_VERSION 15
+#define __DRI_IMAGE_VERSION 16
 
 /**
  * These formats correspond to the similarly named MESA_FORMAT_*
@@ -1513,7 +1513,7 @@ struct __DRIimageExtensionRec {
     *
     * For EGL_EXT_image_dma_buf_import_modifiers.
     *
-    * \since 15
+    * \since 16
     */
    void (*queryDmaBufFormats)(__DRIscreen *screen, int max, int *formats,
                               int *count);
@@ -1523,7 +1523,7 @@ struct __DRIimageExtensionRec {
     *
     * For EGL_EXT_image_dma_buf_import_modifiers.
     *
-    * \since 15
+    * \since 16
     */
    void (*queryDmaBufModifiers)(__DRIscreen *screen, int fourcc, int max,
                                 uint64_t *modifiers, int *count);

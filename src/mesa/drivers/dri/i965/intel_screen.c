@@ -1026,6 +1026,28 @@ intel_create_image_from_dma_bufs(__DRIscreen *dri_screen,
                                                   loaderPrivate);
 }
 
+static void *
+intel_map_image(__DRIcontext *context, __DRIimage *image,
+         int x0, int y0, int width, int height,
+         unsigned int flags, int *stride, void **data)
+{
+    if (!image || !image->bo)
+        return NULL;
+
+    /* TODO: use flags for write enable */
+    drm_intel_bo_map(image->bo, flags & __DRI_IMAGE_TRANSFER_WRITE);
+
+    *stride = image->pitch;
+    return image->bo->virtual;
+}
+
+static void
+intel_unmap_image(__DRIcontext *context, __DRIimage *image, void *data)
+{
+    if (image && image->bo)
+        drm_intel_bo_unmap(image->bo);
+}
+
 static __DRIimage *
 intel_create_image_from_dma_bufs2(__DRIscreen *dri_screen,
                                   int width, int height, int fourcc,
@@ -1163,8 +1185,8 @@ static const __DRIimageExtension intelImageExtension = {
     .createImageFromDmaBufs             = intel_create_image_from_dma_bufs,
     .blitImage                          = NULL,
     .getCapabilities                    = NULL,
-    .mapImage                           = NULL,
-    .unmapImage                         = NULL,
+    .mapImage                           = intel_map_image,
+    .unmapImage                         = intel_unmap_image,
     .createImageWithModifiers           = intel_create_image_with_modifiers,
     .createImageFromDmaBufs2            = intel_create_image_from_dma_bufs2,
     .queryDmaBufFormats                 = intel_query_dma_buf_formats,

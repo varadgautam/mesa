@@ -566,8 +566,13 @@ __intel_create_image(__DRIscreen *dri_screen,
    if (image == NULL)
       return NULL;
 
+   /* Prioritize the modifiers based on what we think will work best. */
    for (int i = 0; i < count; i++) {
       switch (modifiers[i]) {
+      case I915_FORMAT_MOD_X_TILED:
+         if (!image->modifier)
+            image->modifier = I915_FORMAT_MOD_X_TILED;
+         break;
       case I915_FORMAT_MOD_Y_TILED:
          image->modifier = I915_FORMAT_MOD_Y_TILED;
          break;
@@ -621,6 +626,9 @@ intel_create_image_with_modifiers(__DRIscreen *dri_screen,
    /* This compacts the actual modifiers to the ones we know how to handle */
    for (int i = 0; i < count; i++) {
       switch (modifiers[i]) {
+      case I915_FORMAT_MOD_X_TILED:
+         local_mods[local_count++] = I915_FORMAT_MOD_X_TILED;
+         break;
       case I915_FORMAT_MOD_Y_TILED:
          local_mods[local_count++] = I915_FORMAT_MOD_Y_TILED;
          break;

@@ -546,12 +546,18 @@ create_image_with_modifier(struct intel_screen *screen,
                              __DRIimage *image, uint64_t modifier,
                              int width, int height, int cpp)
 {
-   uint32_t tiling;
+   uint32_t requested_tiling = 0, tiling = 0;
    unsigned long pitch;
 
    switch (modifier) {
    case I915_FORMAT_MOD_Y_TILED:
-      tiling = I915_TILING_Y;
+      requested_tiling = tiling = I915_TILING_Y;
+      break;
+   case I915_FORMAT_MOD_X_TILED:
+      requested_tiling = tiling = I915_TILING_X;
+      break;
+   default:
+      unreachable("Unknown modifier");
    }
 
    /* For now, all modifiers require some tiling */
@@ -564,7 +570,7 @@ create_image_with_modifier(struct intel_screen *screen,
    if (image->bo == NULL)
       return false;
 
-   if (tiling != I915_TILING_Y) {
+   if (tiling != requested_tiling) {
       drm_intel_bo_unreference(image->bo);
       return false;
    }

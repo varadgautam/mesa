@@ -565,13 +565,16 @@ create_image_with_modifier(struct intel_screen *screen,
 {
    uint32_t requested_tiling = I915_TILING_NONE, tiling = I915_TILING_NONE;
    unsigned long pitch;
+   unsigned tiled_height = height;
 
    switch (modifier) {
    case I915_FORMAT_MOD_Y_TILED:
       requested_tiling = tiling = I915_TILING_Y;
+      tiled_height = ALIGN(height, 32);
       break;
    case I915_FORMAT_MOD_X_TILED:
       requested_tiling = tiling = I915_TILING_X;
+      tiled_height = ALIGN(height, 8);
       break;
    case DRM_FORMAT_MOD_LINEAR:
       requested_tiling = tiling = I915_TILING_NONE;

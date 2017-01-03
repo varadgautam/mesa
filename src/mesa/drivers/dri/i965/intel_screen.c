@@ -548,13 +548,16 @@ create_image_with_modifier(struct intel_screen *screen,
 {
    uint32_t requested_tiling = 0, tiling = 0;
    unsigned long pitch;
+   unsigned tiled_height = 0;
 
    switch (modifier) {
    case I915_FORMAT_MOD_Y_TILED:
       requested_tiling = tiling = I915_TILING_Y;
+      tiled_height = ALIGN(height, 32);
       break;
    case I915_FORMAT_MOD_X_TILED:
       requested_tiling = tiling = I915_TILING_X;
+      tiled_height = height;
       break;
    default:
       unreachable("Unknown modifier");
@@ -565,7 +568,7 @@ create_image_with_modifier(struct intel_screen *screen,
 
    cpp = _mesa_get_format_bytes(image->format);
    image->bo = drm_intel_bo_alloc_tiled(screen->bufmgr, "image+mod",
-                                        width, height, cpp, &tiling,
+                                        width, tiled_height, cpp, &tiling,
                                         &pitch, 0);
    if (image->bo == NULL)
       return false;

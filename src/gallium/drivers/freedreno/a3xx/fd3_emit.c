@@ -303,6 +303,8 @@ fd3_emit_gmem_restore_tex(struct fd_ringbuffer *ring,
 
 		struct fd_resource *rsc = fd_resource(psurf[i]->texture);
 		enum pipe_format format = fd_gmem_restore_format(psurf[i]->format);
+		uint8_t ms_x = psurf[i]->texture->nr_samples > 1, ms_y = psurf[i]->texture->nr_samples > 2;
+
 		/* The restore blit_zs shader expects stencil in sampler 0, and depth
 		 * in sampler 1
 		 */
@@ -319,11 +321,12 @@ fd3_emit_gmem_restore_tex(struct fd_ringbuffer *ring,
 
 		OUT_RING(ring, A3XX_TEX_CONST_0_FMT(fd3_pipe2tex(format)) |
 				 A3XX_TEX_CONST_0_TYPE(A3XX_TEX_2D) |
+				 A3XX_TEX_CONST_0_MSAATEX(tex_msaa_samples(psurf[i]->texture->nr_samples)) |
 				 fd3_tex_swiz(format,  PIPE_SWIZZLE_X, PIPE_SWIZZLE_Y,
 							  PIPE_SWIZZLE_Z, PIPE_SWIZZLE_W));
 		OUT_RING(ring, A3XX_TEX_CONST_1_FETCHSIZE(TFETCH_DISABLE) |
-				 A3XX_TEX_CONST_1_WIDTH(psurf[i]->width) |
-				 A3XX_TEX_CONST_1_HEIGHT(psurf[i]->height));
+				 A3XX_TEX_CONST_1_WIDTH(psurf[i]->width << ms_x) |
+				 A3XX_TEX_CONST_1_HEIGHT(psurf[i]->height << ms_y));
 		OUT_RING(ring, A3XX_TEX_CONST_2_PITCH(slice->pitch * rsc->cpp) |
 				 A3XX_TEX_CONST_2_INDX(BASETABLE_SZ * i));
 		OUT_RING(ring, 0x00000000);
@@ -490,14 +493,23 @@ fd3_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
 {
 	const struct ir3_shader_variant *vp = fd3_emit_get_vp(emit);
 	const struct ir3_shader_variant *fp = fd3_emit_get_fp(emit);
+	struct pipe_framebuffer_state *pfb = &ctx->batch->framebuffer;
 	uint32_t dirty = emit->dirty;
 
 	emit_marker(ring, 5);
 
+	/* NOTE: there are a few chunks of state which also depend on
+	 * MSAA settings from framebuffer state.  But we explicity don't
+	 * check for (dirty & (FD_DIRTY_foo | FD_DIRTY_FRAMEBUFFER))
+	 * because that would cause state we don't want emitted to be
+	 * emitted during a clear.  This is safe since the pfb state is
+	 * invariant over a batch.
+	 */
+
 	if (dirty & FD_DIRTY_SAMPLE_MASK) {
 		OUT_PKT0(ring, REG_A3XX_RB_MSAA_CONTROL, 1);
-		OUT_RING(ring, A3XX_RB_MSAA_CONTROL_DISABLE |
-				A3XX_RB_MSAA_CONTROL_SAMPLES(MSAA_ONE) |
+		OUT_RING(ring, COND(pfb->samples < 2, A3XX_RB_MSAA_CONTROL_DISABLE) |
+				A3XX_RB_MSAA_CONTROL_SAMPLES(msaa_samples(pfb->samples)) |
 				A3XX_RB_MSAA_CONTROL_SAMPLE_MASK(ctx->sample_mask));
 	}
 
@@ -638,6 +650,7 @@ fd3_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
 		int miny = scissor->miny;
 		int maxx = scissor->maxx;
 		int maxy = scissor->maxy;
+		uint8_t ms = pfb->samples >> 1;
 
 		/* Unfortunately there is no separate depth clip disable, only an all
 		 * or nothing deal. So when we disable clipping, we must handle the
@@ -652,10 +665,10 @@ fd3_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
 		}
 
 		OUT_PKT0(ring, REG_A3XX_GRAS_SC_WINDOW_SCISSOR_TL, 2);
-		OUT_RING(ring, A3XX_GRAS_SC_WINDOW_SCISSOR_TL_X(minx) |
-				A3XX_GRAS_SC_WINDOW_SCISSOR_TL_Y(miny));
-		OUT_RING(ring, A3XX_GRAS_SC_WINDOW_SCISSOR_BR_X(maxx - 1) |
-				A3XX_GRAS_SC_WINDOW_SCISSOR_BR_Y(maxy - 1));
+		OUT_RING(ring, A3XX_GRAS_SC_WINDOW_SCISSOR_TL_X(minx << ms) |
+				A3XX_GRAS_SC_WINDOW_SCISSOR_TL_Y(miny << ms));
+		OUT_RING(ring, A3XX_GRAS_SC_WINDOW_SCISSOR_BR_X((maxx << ms) - 1) |
+				A3XX_GRAS_SC_WINDOW_SCISSOR_BR_Y((maxy << ms) - 1));
 
 		ctx->batch->max_scissor.minx = MIN2(ctx->batch->max_scissor.minx, minx);
 		ctx->batch->max_scissor.miny = MIN2(ctx->batch->max_scissor.miny, miny);
@@ -666,10 +679,10 @@ fd3_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
 	if (dirty & FD_DIRTY_VIEWPORT) {
 		fd_wfi(ctx->batch, ring);
 		OUT_PKT0(ring, REG_A3XX_GRAS_CL_VPORT_XOFFSET, 6);
-		OUT_RING(ring, A3XX_GRAS_CL_VPORT_XOFFSET(ctx->viewport.translate[0] - 0.5));
-		OUT_RING(ring, A3XX_GRAS_CL_VPORT_XSCALE(ctx->viewport.scale[0]));
-		OUT_RING(ring, A3XX_GRAS_CL_VPORT_YOFFSET(ctx->viewport.translate[1] - 0.5));
-		OUT_RING(ring, A3XX_GRAS_CL_VPORT_YSCALE(ctx->viewport.scale[1]));
+		OUT_RING(ring, A3XX_GRAS_CL_VPORT_XOFFSET((ctx->viewport.translate[0] * pfb->samples) - 0.5));
+		OUT_RING(ring, A3XX_GRAS_CL_VPORT_XSCALE((ctx->viewport.scale[0] * pfb->samples)));
+		OUT_RING(ring, A3XX_GRAS_CL_VPORT_YOFFSET((ctx->viewport.translate[1] * pfb->samples) - 0.5));
+		OUT_RING(ring, A3XX_GRAS_CL_VPORT_YSCALE((ctx->viewport.scale[1] * pfb->samples)));
 		OUT_RING(ring, A3XX_GRAS_CL_VPORT_ZOFFSET(ctx->viewport.translate[2]));
 		OUT_RING(ring, A3XX_GRAS_CL_VPORT_ZSCALE(ctx->viewport.scale[2]));
 	}
@@ -699,7 +712,6 @@ fd3_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
 	}
 
 	if (dirty & (FD_DIRTY_PROG | FD_DIRTY_FRAMEBUFFER | FD_DIRTY_BLEND_DUAL)) {
-		struct pipe_framebuffer_state *pfb = &ctx->batch->framebuffer;
 		int nr_cbufs = pfb->nr_cbufs;
 		if (fd3_blend_stateobj(ctx->blend)->rb_render_control &
 			A3XX_RB_RENDER_CONTROL_DUAL_COLOR_IN_ENABLE)
@@ -723,8 +735,7 @@ fd3_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
 		uint32_t i;
 
 		for (i = 0; i < ARRAY_SIZE(blend->rb_mrt); i++) {
-			enum pipe_format format =
-				pipe_surface_format(ctx->batch->framebuffer.cbufs[i]);
+			enum pipe_format format = pipe_surface_format(pfb->cbufs[i]);
 			const struct util_format_description *desc =
 				util_format_description(format);
 			bool is_float = util_format_is_float(format);
@@ -837,15 +848,7 @@ fd3_emit_restore(struct fd_batch *batch, struct fd_ringbuffer *ring)
 	OUT_PKT0(ring, REG_A3XX_PC_VERTEX_REUSE_BLOCK_CNTL, 1);
 	OUT_RING(ring, 0x0000000b);                  /* PC_VERTEX_REUSE_BLOCK_CNTL */
 
-	OUT_PKT0(ring, REG_A3XX_GRAS_SC_CONTROL, 1);
-	OUT_RING(ring, A3XX_GRAS_SC_CONTROL_RENDER_MODE(RB_RENDERING_PASS) |
-			A3XX_GRAS_SC_CONTROL_MSAA_SAMPLES(MSAA_ONE) |
-			A3XX_GRAS_SC_CONTROL_RASTER_MODE(0));
-
-	OUT_PKT0(ring, REG_A3XX_RB_MSAA_CONTROL, 2);
-	OUT_RING(ring, A3XX_RB_MSAA_CONTROL_DISABLE |
-			A3XX_RB_MSAA_CONTROL_SAMPLES(MSAA_ONE) |
-			A3XX_RB_MSAA_CONTROL_SAMPLE_MASK(0xffff));
+	OUT_PKT0(ring, REG_A3XX_RB_ALPHA_REF, 1);
 	OUT_RING(ring, 0x00000000);        /* RB_ALPHA_REF */
 
 	OUT_PKT0(ring, REG_A3XX_GRAS_CL_GB_CLIP_ADJ, 1);

@@ -130,10 +130,12 @@ calculate_tiles(struct fd_batch *batch)
 			zsbuf_cpp[1] = rsc->stencil->cpp;
 	}
 	for (i = 0; i < pfb->nr_cbufs; i++) {
-		if (pfb->cbufs[i])
+		if (pfb->cbufs[i]) {
 			cbuf_cpp[i] = util_format_get_blocksize(pfb->cbufs[i]->format);
-		else
+			cbuf_cpp[i] *= MAX2(1, pfb->cbufs[i]->texture->nr_samples);
+		} else {
 			cbuf_cpp[i] = 4;
+		}
 	}
 
 	if (!memcmp(gmem->zsbuf_cpp, zsbuf_cpp, sizeof(zsbuf_cpp)) &&
@@ -201,6 +203,8 @@ calculate_tiles(struct fd_batch *batch)
 	gmem->miny = miny;
 	gmem->width = width;
 	gmem->height = height;
+	gmem->ms_x = pfb->samples > 1;
+	gmem->ms_y = pfb->samples > 2;
 
 	/*
 	 * Assign tiles and pipes:

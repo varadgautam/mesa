@@ -814,7 +814,7 @@ fd_resource_create(struct pipe_screen *pscreen,
 			 util_format_description(format)->layout == UTIL_FORMAT_LAYOUT_RGTC)
 		format = PIPE_FORMAT_R8G8B8A8_UNORM;
 	rsc->internal_format = format;
-	rsc->cpp = util_format_get_blocksize(format);
+	rsc->cpp = util_format_get_blocksize(format) * (tmpl->nr_samples > 0 ? tmpl->nr_samples : 1);
 
 	assert(rsc->cpp);
 
@@ -908,8 +908,9 @@ fd_resource_from_handle(struct pipe_screen *pscreen,
 		goto fail;
 
 	rsc->base.vtbl = &fd_resource_vtbl;
-	rsc->cpp = util_format_get_blocksize(tmpl->format);
+	rsc->cpp = util_format_get_blocksize(tmpl->format) * MAX2(1, tmpl->nr_samples);
 	slice->pitch = handle->stride / rsc->cpp;
+
 	slice->offset = handle->offset;
 	slice->size0 = handle->stride * prsc->height0;
 
@@ -1018,7 +1019,7 @@ fd_blit(struct pipe_context *pctx, const struct pipe_blit_info *blit_info)
 	struct pipe_blit_info info = *blit_info;
 	bool discard = false;
 
-	if (info.src.resource->nr_samples > 1 &&
+	if (info.src.resource->nr_samples > 4 &&
 			info.dst.resource->nr_samples <= 1 &&
 			!util_format_is_depth_or_stencil(info.src.resource->format) &&
 			!util_format_is_pure_integer(info.src.resource->format)) {

@@ -324,8 +324,11 @@ fd_clear(struct pipe_context *pctx, unsigned buffers,
 
 	if (buffers & PIPE_CLEAR_COLOR)
 		for (i = 0; i < pfb->nr_cbufs; i++)
-			if (buffers & (PIPE_CLEAR_COLOR0 << i))
+			if (buffers & (PIPE_CLEAR_COLOR0 << i)) {
 				resource_written(batch, pfb->cbufs[i]->texture);
+				if (pfb->cbufs[i]->texture->nr_samples > 1)
+					batch->gmem_reason |= FD_GMEM_MSAA_ENABLED;
+			}
 
 	if (buffers & (PIPE_CLEAR_DEPTH | PIPE_CLEAR_STENCIL)) {
 		resource_written(batch, pfb->zsbuf->texture);

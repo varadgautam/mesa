@@ -517,6 +517,9 @@ fd3_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
 		uint32_t val = fd3_zsa_stateobj(ctx->zsa)->rb_render_control |
 			fd3_blend_stateobj(ctx->blend)->rb_render_control;
 
+		if (pfb->samples < 2) {
+			val &= ~(A3XX_RB_RENDER_CONTROL_ALPHA_TO_COVERAGE | A3XX_RB_RENDER_CONTROL_ALPHA_TO_ONE);
+		}
 		val |= COND(fp->frag_face, A3XX_RB_RENDER_CONTROL_FACENESS);
 		val |= COND(fp->frag_coord, A3XX_RB_RENDER_CONTROL_XCOORD |
 				A3XX_RB_RENDER_CONTROL_YCOORD |
@@ -778,6 +781,9 @@ fd3_emit_state(struct fd_context *ctx, struct fd_ringbuffer *ring,
 			OUT_RING(ring, blend_control |
 					COND(!is_float, A3XX_RB_MRT_BLEND_CONTROL_CLAMP_ENABLE));
 		}
+		uint32_t val = blend->rb_render_control;
+		OUT_PKT0(ring, REG_A3XX_RB_RENDER_CONTROL, 1);
+		OUT_RINGP(ring, val, &ctx->batch->rbrc_patches);
 	}
 
 	if (dirty & FD_DIRTY_BLEND_COLOR) {

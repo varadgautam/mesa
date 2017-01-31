@@ -609,24 +609,24 @@ fd3_emit_tile_mem2gmem(struct fd_batch *batch, struct fd_tile *tile)
 
 	fd_wfi(batch, ring);
 	OUT_PKT0(ring, REG_A3XX_GRAS_CL_VPORT_XOFFSET, 6);
-	OUT_RING(ring, A3XX_GRAS_CL_VPORT_XOFFSET((float)(pfb->width << ms)/2.0 - 0.5));
-	OUT_RING(ring, A3XX_GRAS_CL_VPORT_XSCALE((float)(pfb->width << ms)/2.0));
-	OUT_RING(ring, A3XX_GRAS_CL_VPORT_YOFFSET((float)(pfb->height << ms)/2.0 - 0.5));
-	OUT_RING(ring, A3XX_GRAS_CL_VPORT_YSCALE(-(float)(pfb->height << ms)/2.0));
+	OUT_RING(ring, A3XX_GRAS_CL_VPORT_XOFFSET((float)(bin_w << ms)/2.0 - 0.5));
+	OUT_RING(ring, A3XX_GRAS_CL_VPORT_XSCALE((float)(bin_w << ms)/2.0));
+	OUT_RING(ring, A3XX_GRAS_CL_VPORT_YOFFSET((float)(bin_h << ms)/2.0 - 0.5));
+	OUT_RING(ring, A3XX_GRAS_CL_VPORT_YSCALE(-(float)(bin_h << ms)/2.0));
 	OUT_RING(ring, A3XX_GRAS_CL_VPORT_ZOFFSET(0.0));
 	OUT_RING(ring, A3XX_GRAS_CL_VPORT_ZSCALE(1.0));
 
 	OUT_PKT0(ring, REG_A3XX_GRAS_SC_WINDOW_SCISSOR_TL, 2);
 	OUT_RING(ring, A3XX_GRAS_SC_WINDOW_SCISSOR_TL_X(0) |
 			A3XX_GRAS_SC_WINDOW_SCISSOR_TL_Y(0));
-	OUT_RING(ring, A3XX_GRAS_SC_WINDOW_SCISSOR_BR_X((pfb->width << ms) - 1) |
-			A3XX_GRAS_SC_WINDOW_SCISSOR_BR_Y((pfb->height << ms) - 1));
+	OUT_RING(ring, A3XX_GRAS_SC_WINDOW_SCISSOR_BR_X((bin_w << ms) - 1) |
+			A3XX_GRAS_SC_WINDOW_SCISSOR_BR_Y((bin_h << ms) - 1));
 
 	OUT_PKT0(ring, REG_A3XX_GRAS_SC_SCREEN_SCISSOR_TL, 2);
-	OUT_RING(ring, A3XX_GRAS_SC_SCREEN_SCISSOR_TL_X(p0) |
-			A3XX_GRAS_SC_SCREEN_SCISSOR_TL_Y(q0));
-	OUT_RING(ring, A3XX_GRAS_SC_SCREEN_SCISSOR_BR_X(p1) |
-			A3XX_GRAS_SC_SCREEN_SCISSOR_BR_Y(q1));
+	OUT_RING(ring, A3XX_GRAS_SC_SCREEN_SCISSOR_TL_X(0) |
+			A3XX_GRAS_SC_SCREEN_SCISSOR_TL_Y(0));
+	OUT_RING(ring, A3XX_GRAS_SC_SCREEN_SCISSOR_BR_X((bin_w << ms) - 1) |
+			A3XX_GRAS_SC_SCREEN_SCISSOR_BR_Y((bin_h << ms) - 1));
 
 	OUT_PKT0(ring, REG_A3XX_RB_STENCIL_CONTROL, 1);
 	OUT_RING(ring, 0x2 |
@@ -762,8 +762,8 @@ fd3_emit_sysmem_prep(struct fd_batch *batch)
 	OUT_PKT0(ring, REG_A3XX_GRAS_SC_SCREEN_SCISSOR_TL, 2);
 	OUT_RING(ring, A3XX_GRAS_SC_SCREEN_SCISSOR_TL_X(0) |
 			A3XX_GRAS_SC_SCREEN_SCISSOR_TL_Y(0));
-	OUT_RING(ring, A3XX_GRAS_SC_SCREEN_SCISSOR_BR_X((pfb->width) - 1) |
-			A3XX_GRAS_SC_SCREEN_SCISSOR_BR_Y((pfb->height) - 1));
+	OUT_RING(ring, A3XX_GRAS_SC_SCREEN_SCISSOR_BR_X(pfb->width - 1) |
+			A3XX_GRAS_SC_SCREEN_SCISSOR_BR_Y(pfb->height - 1));
 
 	OUT_PKT0(ring, REG_A3XX_RB_MODE_CONTROL, 1);
 	OUT_RING(ring, A3XX_RB_MODE_CONTROL_RENDER_MODE(RB_RENDERING_PASS) |

@@ -544,9 +544,6 @@ select_best_modifier(struct gen_device_info *devinfo,
 
    for (int i = 0; i < count; i++) {
       switch (modifiers[i]) {
-      case /* I915_FORMAT_MOD_Yf_TILED_CCS */ fourcc_mod_code(INTEL, 5):
-         prio = MAX2(prio, MODIFIER_PRIORITY_Yf_CCS);
-         break;
       case /* I915_FORMAT_MOD_Y_TILED_CCS */ fourcc_mod_code(INTEL, 4):
          prio = MAX2(prio, MODIFIER_PRIORITY_Y_CCS);
          break;
@@ -559,6 +556,7 @@ select_best_modifier(struct gen_device_info *devinfo,
       case DRM_FORMAT_MOD_LINEAR:
          prio = MAX2(prio, MODIFIER_PRIORITY_LINEAR);
          break;
+      case /* I915_FORMAT_MOD_Yf_TILED_CCS */ fourcc_mod_code(INTEL, 5):
       case DRM_FORMAT_MOD_INVALID:
       default:
          break;

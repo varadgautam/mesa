@@ -376,6 +376,18 @@ The integer capabilities:
   operations are supported.
 * ``PIPE_CAP_TGSI_TEX_TXF_LZ``: Whether TEX_LZ and TXF_LZ opcodes are
   supported.
+* ``PIPE_CAP_TGSI_CLOCK``: Whether the CLOCK opcode is supported.
+* ``PIPE_CAP_POLYGON_MODE_FILL_RECTANGLE``: Whether the
+  PIPE_POLYGON_MODE_FILL_RECTANGLE mode is supported for
+  ``pipe_rasterizer_state::fill_front`` and
+  ``pipe_rasterizer_state::fill_back``.
+* ``PIPE_CAP_SPARSE_BUFFER_PAGE_SIZE``: The page size of sparse buffers in
+  bytes, or 0 if sparse buffers are not supported. The page size must be at
+  most 64KB.
+* ``PIPE_CAP_TGSI_BALLOT``: Whether the BALLOT and READ_* opcodes as well as
+  the SUBGROUP_* semantics are supported.
+* ``PIPE_CAP_QUERY_DMABUF_ATTRIBS``: Whether the driver supports querying for
+  supported dmabuf formats and format modifiers.
 
 
 .. _pipe_capf:

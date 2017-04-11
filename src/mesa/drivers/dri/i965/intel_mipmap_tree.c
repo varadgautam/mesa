@@ -852,6 +852,12 @@ intel_miptree_create_for_image(struct brw_context *intel,
    assert(mt->logical_depth0 == 1);
 
    create_ccs_buf_for_image(intel, image, mt);
+   if (image->dma_buf_imported)
+      /* We have an imported image with aux data. Mark it unresolved.
+       */
+      intel_miptree_set_fast_clear_state(intel, mt, mt->first_level,
+                                         0, mt->logical_depth0,
+                                         INTEL_FAST_CLEAR_STATE_UNRESOLVED);
 
    return mt;
 }

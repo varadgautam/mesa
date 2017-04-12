@@ -1054,6 +1054,78 @@ intel_create_image_from_dma_bufs2(__DRIscreen *dri_screen,
                                                   loaderPrivate);
 }
 
+static const struct intel_modifier_info {
+   uint64_t modifier;       /* fourcc modifier code */
+   uint8_t since_gen;       /* introduced in gen */
+   bool rgb8888_only;       /* only supported with RGB8888 formats */
+} intel_modifier_info[] = {
+   { I915_FORMAT_MOD_Y_TILED, 9, false },
+   { /* I915_FORMAT_MOD_Y_TILED_CCS */ fourcc_mod_code(INTEL, 4), 9, true },
+   /* TODO add Yf_TILED, Yf_TILED_CCS when supported */
+   { I915_FORMAT_MOD_X_TILED, 1, false },
+   { DRM_FORMAT_MOD_NONE, 1, false }
+};
+
+static GLboolean
+intel_query_dma_buf_formats(__DRIscreen *screen, int max,
+                            int *formats, int *count)
+{
+   int i, j = 0;
+
+   if (max == 0) {
+      *count = ARRAY_SIZE(intel_image_formats) - 1; // for not returning SARGB
+      return true;
+   }
+
+   for (i = 0; i < (ARRAY_SIZE(intel_image_formats)) && j < max; i++) {
+     if (intel_image_formats[i].fourcc == __DRI_IMAGE_FOURCC_SARGB8888)
+       continue;
+     formats[j++] = intel_image_formats[i].fourcc;
+   }
+
+   *count = j;
+   return true;
+}
+// intel_screen.c: In function 'intel_create_image_from_fds_common':
+// intel_screen.c:868:13: warning: unused variable 'tiling' [-Wunused-variable]
+//     unsigned tiling, tiled_height = height; TODO
+static GLboolean
+intel_query_dma_buf_modifiers(__DRIscreen *_screen, int fourcc, int max,
+                              uint64_t *modifiers, int *count)
+{
+   struct intel_screen *screen = _screen->driverPrivate;
+   bool is_rgb8888 = false;
+   int num_mods = 0, i;
+
+   for (i = 0; i < ARRAY_SIZE(intel_image_formats); i++) {
+      if (fourcc == intel_image_formats[i].fourcc)
+         break;
+   }
+   if (i == ARRAY_SIZE(intel_image_formats))
+      return false;
+
+   switch (fourcc) {
+   case DRM_FORMAT_XBGR8888:
+   case DRM_FORMAT_ABGR8888:
+   case DRM_FORMAT_XRGB8888:
+   case DRM_FORMAT_ARGB8888:
+      is_rgb8888 = true;
+   }
+
+   for (i = 0; i < ARRAY_SIZE(intel_modifier_info); i++) {
+      if (screen->devinfo.gen >= intel_modifier_info[i].since_gen)
+         if (!intel_modifier_info[i].rgb8888_only ||
+               is_rgb8888 == intel_modifier_info[i].rgb8888_only) {
+            if (max == 0)
+               num_mods++;
+           else if (num_mods < max)
+               modifiers[num_mods++] = intel_modifier_info[i].modifier;
+         }
+   }
+   *count = num_mods;
+   return true;
+}
+
 static __DRIimage *
 intel_from_planar(__DRIimage *parent, int plane, void *loaderPrivate)
 {
@@ -1115,7 +1187,7 @@ intel_from_planar(__DRIimage *parent, int plane, void *loaderPrivate)
 }
 
 static const __DRIimageExtension intelImageExtension = {
-    .base = { __DRI_IMAGE, 15 },
+    .base = { __DRI_IMAGE, 16 },
 
     .createImageFromName                = intel_create_image_from_name,
     .createImageFromRenderbuffer        = intel_create_image_from_renderbuffer,
@@ -1135,6 +1207,8 @@ static const __DRIimageExtension intelImageExtension = {
     .unmapImage                         = NULL,
     .createImageWithModifiers           = intel_create_image_with_modifiers,
     .createImageFromDmaBufs2            = intel_create_image_from_dma_bufs2,
+    .queryDmaBufFormats                 = intel_query_dma_buf_formats,
+    .queryDmaBufModifiers               = intel_query_dma_buf_modifiers,
 };
 
 static uint64_t

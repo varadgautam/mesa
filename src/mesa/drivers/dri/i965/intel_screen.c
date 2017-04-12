@@ -628,7 +628,7 @@ create_image_with_modifier(struct intel_screen *screen,
       return false;
 
    if (tiling != requested_tiling) {
-      brw_intel_bo_unreference(image->bo);
+      brw_bo_unreference(image->bo);
       return false;
    }
 

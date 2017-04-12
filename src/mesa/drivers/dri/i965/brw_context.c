@@ -1673,14 +1673,14 @@ intel_process_dri2_buffer(struct brw_context *brw,
                                                               buffer->pitch,
                                                               MIPTREE_LAYOUT_FOR_SCANOUT);
    if (!mt) {
-      drm_intel_bo_unreference(bo);
+      brw_bo_unreference(bo);
       return;
    }
 
    if (!intel_update_winsys_renderbuffer_miptree(brw, rb, mt,
                                                  drawable->w, drawable->h,
                                                  buffer->pitch)) {
-      drm_intel_bo_unreference(bo);
+      brw_bo_unreference(bo);
       intel_miptree_release(&mt);
       return;
    }

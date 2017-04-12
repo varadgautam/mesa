@@ -794,7 +794,7 @@ create_ccs_buf_for_image(struct brw_context *intel,
 
    mt->mcs_buf = calloc(1, sizeof(*mt->mcs_buf));
    mt->mcs_buf->bo = image->bo;
-   drm_intel_bo_reference(image->bo);
+   brw_bo_reference(image->bo);
 
    mt->mcs_buf->offset = image->aux_offset;
    mt->mcs_buf->size = temp_ccs_surf.size;

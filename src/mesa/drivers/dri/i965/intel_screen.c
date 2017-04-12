@@ -1186,6 +1186,30 @@ intel_from_planar(__DRIimage *parent, int plane, void *loaderPrivate)
     return image;
 }
 
+static void *
+intel_map_image(__DRIcontext *context, __DRIimage *image,
+         int x0, int y0, int width, int height,
+         unsigned int flags, int *stride, void **data)
+{
+    if (!image || !image->bo)
+        return NULL;
+
+    struct brw_context *brw = context->driverPrivate;
+    /* TODO: use flags for write enable */
+    brw_bo_map(brw, image->bo, 1); // write enable
+
+    *stride = image->pitch;
+    return image->bo->virtual;
+}
+
+static void
+intel_unmap_image(__DRIcontext *context, __DRIimage *image, void *data)
+{
+    if (image && image->bo)
+        brw_bo_unmap(image->bo);
+}
+
+
 static const __DRIimageExtension intelImageExtension = {
     .base = { __DRI_IMAGE, 16 },
 
@@ -1203,8 +1227,8 @@ static const __DRIimageExtension intelImageExtension = {
     .createImageFromDmaBufs             = intel_create_image_from_dma_bufs,
     .blitImage                          = NULL,
     .getCapabilities                    = NULL,
-    .mapImage                           = NULL,
-    .unmapImage                         = NULL,
+    .mapImage                           = intel_map_image,
+    .unmapImage                         = intel_unmap_image,
     .createImageWithModifiers           = intel_create_image_with_modifiers,
     .createImageFromDmaBufs2            = intel_create_image_from_dma_bufs2,
     .queryDmaBufFormats                 = intel_query_dma_buf_formats,

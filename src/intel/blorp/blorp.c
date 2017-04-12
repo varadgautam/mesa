@@ -306,7 +306,9 @@ blorp_surf_dump(const struct blorp_context *blorp,
    }
 
    isl_surf_dump(blorp->isl_dev, surf->surf, map, size,
-                 aux_map ? surf->aux_surf : NULL, aux_map, aux_size,
+                 aux_map ? surf->aux_surf : NULL,
+                 aux_map + surf->aux_addr.offset,
+                 size - surf->aux_addr.offset,
                  basename);
 
    if (!was_mapped)

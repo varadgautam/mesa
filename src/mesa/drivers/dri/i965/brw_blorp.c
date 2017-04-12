@@ -41,6 +41,7 @@
 #define FILE_DEBUG_FLAG DEBUG_BLORP
 
 static const bool isl_hiz_debug_dump = false;
+static const bool isl_ccs_debug_dump = false;
 
 static void
 brw_blorp_map(const struct blorp_context *blorp,
@@ -1027,9 +1028,17 @@ brw_blorp_resolve_color(struct brw_context *brw, struct intel_mipmap_tree *mt,
 
    struct blorp_batch batch;
    blorp_batch_init(&brw->blorp, &batch, brw, 0);
+
+   if (isl_ccs_debug_dump && resolve_op == BLORP_FAST_CLEAR_OP_RESOLVE_FULL)
+     blorp_surf_dump(batch.blorp, &surf, "pre-resolve");
+
    blorp_ccs_resolve(&batch, &surf, level, layer,
                      brw_blorp_to_isl_format(brw, format, true),
                      resolve_op);
+
+   if (isl_ccs_debug_dump && resolve_op == BLORP_FAST_CLEAR_OP_RESOLVE_FULL)
+     blorp_surf_dump(batch.blorp, &surf, "post-resolve");
+
    blorp_batch_finish(&batch);
 
    /*

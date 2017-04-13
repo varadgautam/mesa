@@ -389,6 +389,8 @@ The integer capabilities:
 * ``PIPE_CAP_TGSI_TES_LAYER_VIEWPORT``: Whether ``TGSI_SEMANTIC_LAYER`` and
   ``TGSI_SEMANTIC_VIEWPORT_INDEX`` are supported as tessellation evaluation
   shader outputs.
+* ``PIPE_CAP_QUERY_DMABUF_ATTRIBS``: Whether the driver supports querying for
+  supported dmabuf formats and format modifiers.
 
 
 .. _pipe_capf:

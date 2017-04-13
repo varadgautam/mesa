@@ -386,6 +386,8 @@ The integer capabilities:
   most 64KB.
 * ``PIPE_CAP_TGSI_BALLOT``: Whether the BALLOT and READ_* opcodes as well as
   the SUBGROUP_* semantics are supported.
+* ``PIPE_CAP_QUERY_DMABUF_ATTRIBS``: Whether the driver supports querying for
+  supported dmabuf formats and format modifiers.
 
 
 .. _pipe_capf:

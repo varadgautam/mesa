@@ -865,7 +865,7 @@ intel_create_image_from_fds_common(__DRIscreen *dri_screen,
    struct intel_screen *screen = dri_screen->driverPrivate;
    struct intel_image_format *f;
    __DRIimage *image;
-   unsigned tiling, tiled_height = height;
+   unsigned tiled_height = height;
    unsigned ccs_height = 0;
    int i, index;
 
